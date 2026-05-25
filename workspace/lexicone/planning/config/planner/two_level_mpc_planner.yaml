@@ -1,0 +1,55 @@
+two_level_mpc_planner:
+  _target_: lexicone.planning.two_level_planner.TwoLevelMPCPlanner
+  _convert_: 'all'
+  mpc_horizon_s: 3.0                # [s] MPC prediction horizon (longer = smoother anticipation through turns)
+  mpc_dt_s: 0.1                     # [s] MPC step / simulator tick
+  replan_period_s: 8.0              # [s] global route re-extraction cadence (longer = less reference jitter)
+  desired_speed_mps: 12.0           # [m/s] cruise speed used when no lower speed limit applies
+  occupancy_map_radius_m: 40.0      # [m] radius around ego used for obstacle filtering
+  global_lookahead_m: 200.0         # [m] leading window of the route handed to the MPC
+  obstacle_slot_count: 6            # number of obstacle constraints baked into the OCP
+  collision_buffer_m: 0.4           # [m] additional clearance added to circumscribed agent radius
+  max_accel_mps2: 2.5
+  max_decel_mps2: 3.5
+  max_speed_mps: 25.0
+  max_steer_rad: 0.5
+  max_steer_rate_radps: 0.7         # [rad/s] steering slew rate
+  max_jerk_mps3: 12.0               # [m/s^3] high enough to ramp to a_min within ~0.3 s
+  weight_pos: 4.0                   # bias toward tight reference tracking so the ego stays on lane
+  weight_heading: 10.0
+  weight_speed: 1.0
+  weight_control: 0.05
+  weight_control_rate: 0.2
+  weight_slack: 500.0
+  # ---------------------------------------------------------------------------
+  # LCP (Lexicographic Constraint Programming) — opt-in v0 wiring.
+  # ---------------------------------------------------------------------------
+  # When ``penalty_form`` is ``null``, the planner runs the legacy single-tier
+  # MPC and ignores all keys below. When set to ``"l1"`` or ``"l2"``, the
+  # planner switches to the new LCP-structured MPC with per-level epigraph
+  # slacks, applicability-masked rule constraints, and sequential
+  # linearisation. See the LCP paper (References/lex_constraint_programming_…).
+  penalty_form: null                # "l1" | "l2" | null  — opt-in
+  # Per-level weights (3 levels: safety, legal, comfort). "auto" entries are
+  # filled in by the calibration cache (Algorithm 1A / 1B); literal floats are
+  # used verbatim. The performance objective (level 4) uses the weight_*
+  # values above.
+  weights_per_level: null           # e.g. ["auto", "auto", "auto"]
+  # Per-level tolerance (only used under penalty_form="l2", per Section 7.2).
+  epsilon_per_level: null           # e.g. [1.0e-4, 4.0e-2, 5.0e-1]
+  # Scenario-class hint used as the calibration-cache key. Set via Hydra
+  # override from the run script when the scenario type is known.
+  scenario_class_hint: "default"
+  # Map ROI radius for the LCP rule encoders' map view.
+  lcp_map_radius_m: 80.0
+  # Per-tick OCP solve strategy:
+  #   "ws":      single WS solve at calibrated weights (paper §4-7). Fast,
+  #              needs Algorithm 1A/1B-calibrated weights to match lex.
+  #   "cascade": run the full L+1-stage lex cascade per tick (paper §3).
+  #              Formally lex-optimal by construction; no calibration needed.
+  #              Recommended for offline simulation.
+  runtime_mode: "ws"
+  # SLP outer-iteration budget for sequential linearisation convergence.
+  # Real-time deployment: 1. Offline cascade-mode: 3-5.
+  slp_max_iterations: 1
+  slp_residual_tol_m: 0.05

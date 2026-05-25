@@ -1,0 +1,11 @@
+- +simulation=closed_loop_nonreactive_agents
+- planner=idm_planner
+- scenario_builder=nuplan_mini
+- scenario_filter=all_scenarios
+- scenario_filter.scenario_types=[following_lane_with_lead,traversing_intersection,high_magnitude_speed]
+- scenario_filter.log_names=[2021.05.12.22.00.38_veh-35_01008_01518,2021.05.12.22.28.35_veh-35_00620_01164,2021.05.12.23.36.44_veh-35_00152_00504,2021.05.12.23.36.44_veh-35_01133_01535]
+- scenario_filter.limit_total_scenarios=1
+- scenario_filter.shuffle=true
+- worker=sequential
+- experiment_name=probe
+- job_name=probe

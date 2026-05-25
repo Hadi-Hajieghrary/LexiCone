@@ -1,0 +1,89 @@
+\PassOptionsToPackage{table}{xcolor}
+\documentclass[journal, twocolumn]{IEEEtran}
+
+\usepackage{amsmath,amsfonts}
+\usepackage{array}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{subfiles}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+\usepackage{fmtcount}
+\usepackage{tcolorbox}
+\usepackage{cite}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{amsthm}
+\usepackage{pifont}
+\usepackage{balance}
+\usepackage{tikz}
+
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{property}{Property}
+\newtheorem{problem}{Problem}
+\newtheorem{invariant}{Invariant}
+\newtheorem*{remark}{Remark}
+
+
+
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc, decorations.pathreplacing, shapes.multipart}
+
+% Graceful handling of missing figure files: show placeholder box with filename
+\let\origincludegraphics\includegraphics
+\renewcommand{\includegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \origincludegraphics[#1]{#2}%
+  }{%
+    \fbox{\parbox{0.8\linewidth}{\centering\small\texttt{[Missing figure: #2]}}}%
+  }%
+}
+
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+
+\begin{document}
+
+\title{title...}
+
+\author{Hadi Hajieghrary$^{1}$,...% <-this % stops a space
+\thanks{$^{1}$Hadi Hajieghrary {\tt\small Hadi.Hajieghrary@Torc.ai}, ....}%
+}
+
+\maketitle
+
+\begin{abstract}
+abstract..
+\end{abstract}
+
+\begin{IEEEkeywords}
+keywords...
+\end{IEEEkeywords}
+
+\section{Introduction}
+\label{Sec:Introduction}
+\subfile{./Sections/Section_I_Introduction}
+
+
+
+\bibliographystyle{./IEEEtran}
+\bibliography{./References/references.bib}
+
+\end{document}

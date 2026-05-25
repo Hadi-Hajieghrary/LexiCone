@@ -1,0 +1,166 @@
+hydra:
+  run:
+    dir: ${output_dir}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+  launcher:
+    _target_: hydra._internal.core_plugins.basic_launcher.BasicLauncher
+  sweeper:
+    _target_: hydra._internal.core_plugins.basic_sweeper.BasicSweeper
+    max_batch_size: null
+  help:
+    app_name: ${hydra.job.name}
+    header: '${hydra.help.app_name} is powered by Hydra.
+
+      '
+    footer: 'Powered by Hydra (https://hydra.cc)
+
+      Use --hydra-help to view Hydra specific help
+
+      '
+    template: '${hydra.help.header}
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (group=option)
+
+
+      $APP_CONFIG_GROUPS
+
+
+      == Config ==
+
+      Override anything in the config (foo.bar=value)
+
+
+      $CONFIG
+
+
+      ${hydra.help.footer}
+
+      '
+  hydra_help:
+    template: 'Hydra (${hydra.runtime.version})
+
+      See https://hydra.cc for more info.
+
+
+      == Flags ==
+
+      $FLAGS_HELP
+
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (For example, append hydra/job_logging=disabled
+      to command line)
+
+
+      $HYDRA_CONFIG_GROUPS
+
+
+      Use ''--cfg hydra'' to Show the Hydra config.
+
+      '
+    hydra_help: ???
+  hydra_logging:
+    version: 1
+    root: null
+    disable_existing_loggers: false
+  job_logging:
+    version: 1
+    root: null
+    disable_existing_loggers: false
+  env: {}
+  searchpath:
+  - file:///workspace/nuplan-project/workspace/lexicone/planning/config
+  - pkg://nuplan.planning.script.config.common
+  - pkg://nuplan.planning.script.experiments
+  callbacks: {}
+  output_subdir: ${output_dir}/code/hydra
+  overrides:
+    hydra:
+    - hydra.searchpath=[file:///workspace/nuplan-project/workspace/lexicone/planning/config,pkg://nuplan.planning.script.config.common,pkg://nuplan.planning.script.experiments]
+    task:
+    - +simulation=closed_loop_reactive_agents
+    - planner=two_level_mpc_planner
+    - planner.two_level_mpc_planner.mpc_horizon_s=3.0
+    - planner.two_level_mpc_planner.mpc_dt_s=0.1
+    - planner.two_level_mpc_planner.replan_period_s=8.0
+    - planner.two_level_mpc_planner.desired_speed_mps=12.0
+    - scenario_builder=nuplan_mini
+    - scenario_filter=all_scenarios
+    - scenario_filter.scenario_types=[medium_magnitude_speed]
+    - scenario_filter.log_names=[2021.05.12.22.00.38_veh-35_01008_01518,2021.05.12.22.28.35_veh-35_00620_01164,2021.05.12.23.36.44_veh-35_00152_00504,2021.05.12.23.36.44_veh-35_01133_01535,2021.05.12.23.36.44_veh-35_02035_02387,2021.05.25.14.16.10_veh-35_01690_02183,2021.06.03.12.02.06_veh-35_00233_00609,2021.06.03.13.55.17_veh-35_00073_00426,2021.06.07.12.54.00_veh-35_01843_02314,2021.06.07.18.53.26_veh-26_00005_00427,2021.06.08.12.54.54_veh-26_04262_04732,2021.06.08.14.35.24_veh-26_02555_03004]
+    - scenario_filter.limit_total_scenarios=1
+    - scenario_filter.shuffle=true
+    - seed=21
+    - worker=sequential
+    - experiment_name=demo_12_batch__14_medium_magnitude_speed__l1
+    - job_name=demo_12_batch__14_medium_magnitude_speed__l1
+    - planner.two_level_mpc_planner.penalty_form=l1
+    - planner.two_level_mpc_planner.weights_per_level=[auto,auto,auto]
+    - planner.two_level_mpc_planner.epsilon_per_level=[1.0e-4,4.0e-2,5.0e-1]
+    - planner.two_level_mpc_planner.scenario_class_hint=medium_magnitude_speed
+  job:
+    name: run_simulation
+    override_dirname: +simulation=closed_loop_reactive_agents,experiment_name=demo_12_batch__14_medium_magnitude_speed__l1,job_name=demo_12_batch__14_medium_magnitude_speed__l1,planner.two_level_mpc_planner.desired_speed_mps=12.0,planner.two_level_mpc_planner.epsilon_per_level=[1.0e-4,4.0e-2,5.0e-1],planner.two_level_mpc_planner.mpc_dt_s=0.1,planner.two_level_mpc_planner.mpc_horizon_s=3.0,planner.two_level_mpc_planner.penalty_form=l1,planner.two_level_mpc_planner.replan_period_s=8.0,planner.two_level_mpc_planner.scenario_class_hint=medium_magnitude_speed,planner.two_level_mpc_planner.weights_per_level=[auto,auto,auto],planner=two_level_mpc_planner,scenario_builder=nuplan_mini,scenario_filter.limit_total_scenarios=1,scenario_filter.log_names=[2021.05.12.22.00.38_veh-35_01008_01518,2021.05.12.22.28.35_veh-35_00620_01164,2021.05.12.23.36.44_veh-35_00152_00504,2021.05.12.23.36.44_veh-35_01133_01535,2021.05.12.23.36.44_veh-35_02035_02387,2021.05.25.14.16.10_veh-35_01690_02183,2021.06.03.12.02.06_veh-35_00233_00609,2021.06.03.13.55.17_veh-35_00073_00426,2021.06.07.12.54.00_veh-35_01843_02314,2021.06.07.18.53.26_veh-26_00005_00427,2021.06.08.12.54.54_veh-26_04262_04732,2021.06.08.14.35.24_veh-26_02555_03004],scenario_filter.scenario_types=[medium_magnitude_speed],scenario_filter.shuffle=true,scenario_filter=all_scenarios,seed=21,worker=sequential
+    id: ???
+    num: ???
+    config_name: default_simulation
+    env_set: {}
+    env_copy: []
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys: []
+  runtime:
+    version: 1.1.0.rc1
+    cwd: /workspace/nuplan-devkit
+    config_sources:
+    - path: hydra.conf
+      schema: pkg
+      provider: hydra
+    - path: /workspace/nuplan-devkit/nuplan/planning/script/config/simulation
+      schema: file
+      provider: main
+    - path: /workspace/nuplan-project/workspace/lexicone/planning/config
+      schema: file
+      provider: hydra.searchpath in command-line
+    - path: nuplan.planning.script.config.common
+      schema: pkg
+      provider: hydra.searchpath in command-line
+    - path: nuplan.planning.script.experiments
+      schema: pkg
+      provider: hydra.searchpath in command-line
+    - path: ''
+      schema: structured
+      provider: schema
+    choices:
+      simulation: closed_loop_reactive_agents
+      simulation_time_controller: step_simulation_time_controller
+      planner: two_level_mpc_planner
+      ego_controller: two_stage_controller
+      ego_controller/motion_model: kinematic_bicycle_model
+      ego_controller/tracker: lqr_tracker
+      observation: idm_agents_observation
+      splitter: nuplan
+      simulation_metric: simulation_closed_loop_reactive_agents
+      worker: sequential
+      model: null
+      scenario_filter: all_scenarios
+      scenario_builder: nuplan_mini
+      scenario_builder/scenario_mapping: nuplan_scenario_mapping
+      scenario_builder/vehicle_parameters: nuplan_vehicle_parameters
+      hydra/env: default
+      hydra/callbacks: null
+      hydra/job_logging: none
+      hydra/hydra_logging: none
+      hydra/hydra_help: default
+      hydra/help: default
+      hydra/sweeper: basic
+      hydra/launcher: basic
+      hydra/output: default
+  verbose: false

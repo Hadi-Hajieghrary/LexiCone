@@ -1,0 +1,13 @@
+- +simulation=closed_loop_nonreactive_agents
+- planner=two_level_mpc_planner
+- planner.two_level_mpc_planner.mpc_horizon_s=2.0
+- planner.two_level_mpc_planner.mpc_dt_s=0.1
+- planner.two_level_mpc_planner.replan_period_s=5.0
+- planner.two_level_mpc_planner.desired_speed_mps=12.0
+- scenario_builder=nuplan_mini
+- scenario_filter=one_continuous_log
+- scenario_filter.log_names=[2021.06.09.12.39.51_veh-26_05620_06003]
+- scenario_filter.limit_total_scenarios=1
+- worker=sequential
+- experiment_name=two_level_mpc_h2.0_v12.0
+- job_name=two_level_mpc_h2.0_v12.0

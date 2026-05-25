@@ -13,8 +13,16 @@
 *.db
 *.gpkg
 *.npz
+*.mp4
+*.csv
+*.parquet
+*.nuboard
+*.json
+*.msgpack.*
+log.txt
 .devcontainer
 data/*
+References/*.*
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
