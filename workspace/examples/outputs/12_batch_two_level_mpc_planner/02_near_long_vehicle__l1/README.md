@@ -10,7 +10,7 @@
 
 The ego is in close proximity to a long vehicle — a bus, truck, or articulated tractor — whose footprint dominates a substantial portion of the surrounding traffic envelope. nuPlan tags such instances as `near_long_vehicle` precisely because the geometry forces non-trivial lateral planning: the ego must give a wider berth than for a typical sedan, often crowding the lane edge or briefly cohabiting two lanes.
 
-The dominant violation here is `7r2` Opposing Lane — the planner's MPC, in negotiating space around the long vehicle, briefly skirts or enters the polygon of an adjacent lane whose centreline heading is anti-parallel to ego's. The `OpposingLaneRule` encoder (Section V.E of [`../../../../References/comprehensive_report.md`](../../../../References/comprehensive_report.md)) tests for opposing-direction lane occupancy with oncoming traffic; the violation rate is the speed-weighted overlap area.
+The dominant violation here is `7r2` Opposing Lane — the planner's MPC, in negotiating space around the long vehicle, briefly skirts or enters the polygon of an adjacent lane whose centreline heading is anti-parallel to ego's. The `OpposingLaneRule` encoder (one of the 16 LCP-controlled rules detailed in [`../../../lexicone/planning/README.md`](../../../lexicone/planning/README.md)) tests for opposing-direction lane occupancy with oncoming traffic; the encoder produces a single half-plane constraint $a_k^\top X[:, k] + b_k^\top U[:, k] + e_k \le T_2[j, k]$ vs the nearest opposing-direction lane (2 slots at $L_2$), and the violation rate is the speed-weighted overlap area between the ego footprint and the opposing-lane polygon.
 
 ## Simulation playback
 

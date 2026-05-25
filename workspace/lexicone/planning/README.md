@@ -8,7 +8,7 @@ A motion-planning pipeline that drives the ego inside the official nuPlan closed
 The trajectory planner has two flavours, selected via the YAML key `penalty_form`:
 
 - **Legacy single-tier MPC** ([`trajectory_planner.py`](trajectory_planner.py)) — when `penalty_form: null`. Flat-weight CasADi/IPOPT nonlinear MPC with a soft collision-slack penalty. The original baseline.
-- **LCP MPC** ([`lcp_mpc.py`](lcp_mpc.py)) — when `penalty_form ∈ {"l1", "l2"}`. Convex linearised MPC implementing the **Lexicographic Constraint Programming (LCP)** framework from [References/lex_constraint_programming_report_v10_2.md](../../../References/lex_constraint_programming_report_v10_2.md): 4-level priority hierarchy (Safety > Legal > Comfort > Efficiency), per-level epigraph slacks, applicability-masked rule constraints, and Algorithm 1A / 1B calibrated weights. The operational LCP planner.
+- **LCP MPC** ([`lcp_mpc.py`](lcp_mpc.py)) — when `penalty_form ∈ {"l1", "l2"}`. Convex linearised MPC implementing the **Lexicographic Constraint Programming (LCP)** framework (the framework paper is gitignored under `References/`; its load-bearing claims are inlined in the "Theory — the LCP MPC" section below): 4-level priority hierarchy (Safety > Legal > Comfort > Efficiency), per-level epigraph slacks, applicability-masked rule constraints, and Algorithm 1A / 1B calibrated weights. The operational LCP planner.
 
 Both flavours are wrapped by [`two_level_planner.py`](two_level_planner.py)'s `TwoLevelMPCPlanner`, which subclasses nuPlan's `AbstractPlanner` and is selected from the simulator's command line via Hydra (`planner=two_level_mpc_planner`).
 
@@ -118,7 +118,7 @@ Three design choices reappear in the LCP variant: heading via $1 - \cos(\Delta\p
 
 ## Theory — the LCP MPC
 
-The LCP framework's full specification is in [References/lex_constraint_programming_report_v10_2.md](../../../References/lex_constraint_programming_report_v10_2.md). We summarise the load-bearing claims:
+The LCP framework's full specification lives in the gitignored `References/` folder. The load-bearing claims, summarised inline so this README is self-contained:
 
 **Setting.** A convex constrained problem with $L$ priority-ordered constraint groups ($i = 1, \ldots, L$), each encoding a violation functional $V_i(z) = \sum_{j,k} \phi(g_{i,j,k}(z))$ where $\phi = [\cdot]_+$ (L₁) or $[\cdot]_+^2$ (L₂), plus a performance objective $J(z)$.
 

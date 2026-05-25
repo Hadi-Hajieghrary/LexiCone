@@ -10,7 +10,7 @@
 
 The ego is approaching a vehicle moving substantially slower in the same lane — the canonical *follow-or-pass* moment that triggers headway-driven decision-making. nuPlan's mini split picks an instance from `2021.06.08.12.54.54_veh-26_04262_04732`. The lead vehicle's speed sits below the ego's desired cruise speed of $12\,\mathrm{m/s}$, so the ego's MPC must trade off route progression against opening up safe space.
 
-The scenario stress-tests the planner's `3r3` safe-headway rule: the headway encoder (Section V.E of [`../../../../References/comprehensive_report.md`](../../../../References/comprehensive_report.md)) constrains $t_{\mathrm{hw}} \cdot v_k + d_{\min} - \mathrm{gap}_k \leq 0$ at every horizon step, where $\mathrm{gap}_k$ is the longitudinal distance to the in-lane lead. When the gap closes faster than the ego can decelerate within its `max_decel_mps2 = 3.5` cap, the slack term in the LCP $L_1$ epigraph (eq. 9 in the report) opens and the level-3 violation $V_3$ grows.
+The scenario stress-tests the planner's `3r3` safe-headway rule. The `SafeHeadwayRule` encoder (one of the 16 LCP-controlled rules, detailed in [`../../../lexicone/planning/README.md`](../../../lexicone/planning/README.md)) constrains $t_{\mathrm{hw}} \cdot v_k + d_{\min} - \mathrm{gap}_k \leq 0$ at every horizon step, where $\mathrm{gap}_k$ is the longitudinal distance to the in-lane lead. When the gap closes faster than the ego can decelerate within its `max_decel_mps2 = 3.5` cap, the per-level epigraph slack term in the LCP $L_1$ formulation — $a_{i,j,k}^\top X[:, k] + b_{i,j,k}^\top U[:, k] + e_{i,j,k} \le T_i[j, k]$ with $T_i[j, k] \ge 0$ — opens and the level-3 violation $V_3$ grows.
 
 ## Simulation playback
 
@@ -33,7 +33,7 @@ The planner detects the slow lead via the rule encoder's `_find_lead` heuristic 
 | `1r0` Yield Priority | L1 | ~25 | Observer-only; fires when an agent has right-of-way the ego is encroaching on |
 | `0r2` Longitudinal Comfort | L0 | small | Brake / launch ramps exceed $a_{x,\max}^{\mathrm{comf}} = 1.8\,\mathrm{m/s^2}$ |
 
-Of the 10 violating rules, only `3r3` and `0r2` are MPC-controlled; the rest are observer-only state machines (Section VII.A of the comprehensive report) and would not change under any planner variant in the comparative protocol.
+Of the 10 violating rules, only `3r3` and `0r2` are MPC-controlled; the rest are observer-only state machines. The 25-rule observer set is partitioned into $\mathcal{R}_\mathrm{MPC}$ (the 16 rules with an active LCP encoder in `make_default_ruleset()`) and $\mathcal{R}_\mathrm{inv}$ (the 9 observer-only state-machine rules — `10r3`, `10r4`, `9r1`, `8r0`, `8r1`, `2r2`, `1r0`, `1r2`, `1r5` — plus the 3 `StubRule` placeholders). No MPC variant can affect rules in $\mathcal{R}_\mathrm{inv}$, so they would not change under any planner variant in the comparative protocol.
 
 ## Files in this directory
 

@@ -25,6 +25,7 @@ A complete deployment of the *Lexicographic Constraint Programming* (LCP) framew
 11. [Dependencies](#dependencies)
 12. [Citation](#citation)
 13. [Status](#status)
+14. [References](#references)
 
 ---
 
@@ -32,7 +33,7 @@ A complete deployment of the *Lexicographic Constraint Programming* (LCP) framew
 
 The repository hosts four complementary deliverables:
 
-1. **The LCP theoretical framework.** A research paper at [`References/lex_constraint_programming_report_v10_2.md`](References/lex_constraint_programming_report_v10_2.md) developing a geometric equivalence theorem (Theorem 4.1) between the $L+1$-stage lex cascade and a single weighted-sum solve at calibrated weights $w^\dagger$, plus constructive algorithms (Algorithm 1A for $L_1$ exact equivalence and Algorithm 1B for $L_2$ tolerance compliance) that compute those weights from finite-dimensional gradient data at the lex optimum. The paper is $15$ sections long and includes Section 14 — *Implementation Lessons from a Closed-Loop Deployment* — that distils 11 operational primitives the framework requires in practice.
+1. **The LCP theoretical framework.** A research paper developing a geometric equivalence theorem (Theorem 4.1) between the $L+1$-stage lex cascade and a single weighted-sum solve at calibrated weights $w^\dagger$, plus constructive algorithms (Algorithm 1A for $L_1$ exact equivalence and Algorithm 1B for $L_2$ tolerance compliance) that compute those weights from finite-dimensional gradient data at the lex optimum. The paper is $15$ sections long and includes Section 14 — *Implementation Lessons from a Closed-Loop Deployment* — that distils 11 operational primitives the framework requires in practice (sequential linearisation for non-convex dynamics, polygon-to-half-plane reduction, per-tick applicability masking with a static slot budget, cross-step coupling proxies, ego-local-frame solving + $L_1$ Tikhonov regulariser for numerical conditioning, calibration drift handling, cascade-per-tick as the offline default, serialisation-tolerance contract for stateful solver wrappers). The load-bearing claims are inlined in §3 below.
 
 2. **The reference implementation.** Application code at [`workspace/`](workspace/) realising the framework as a real MPC trajectory planner that runs inside the official nuPlan closed-loop simulator. The two-level planner ([`workspace/lexicone/planning/`](workspace/lexicone/planning/)) has three operational modes selectable via a Hydra YAML key: **legacy single-tier MPC** (the baseline, equivalent to a flat-weight planner — `penalty_form: null`), **LCP weighted-sum** (the operational mode — `penalty_form: l1` or `l2`, `runtime_mode: ws`), and **LCP lex cascade** (the formally lex-optimal mode — `runtime_mode: cascade`). Sixteen of the observer's twenty-five rules are wired as convex LCP constraints with per-level epigraph slacks; the remaining nine are multi-tick state machines (mandatory-stop approach, yield-priority arbitration, etc.) that fall outside the framework's per-step convex template.
 
@@ -40,7 +41,7 @@ The repository hosts four complementary deliverables:
 
 4. **A $277$-figure artefact suite.** Paper-grade figures at IEEE Transactions typography (Times serif, $10\,\mathrm{pt}$ body, $300\,\mathrm{dpi}$, $3.50\,\mathrm{in}$ single-column or $7.16\,\mathrm{in}$ double-column widths) covering per-scenario detail views ($96$), cross-scenario aggregates ($10$), conceptual / theoretical figures ($12$), and per-rule peak-violation snapshots ($159$). The pipeline is at [`workspace/scripts/`](workspace/scripts/) and re-generates from one shell command.
 
-A separate **comprehensive project report** at [`References/comprehensive_report.md`](References/comprehensive_report.md) (~$12{,}000$ words, $11$ IEEE-style sections plus appendices) serves as the canonical source document for an eventual journal submission and as the most thorough onboarding read.
+A separate **comprehensive project report** (~$12{,}000$ words, $11$ IEEE-style sections plus appendices) serves as the canonical source document for an eventual journal submission. Its sections cover (I) Introduction, (II) Related Work, (III) The LCP Framework — Summarised Claims, (IV) The Observer Subpackage, (V) The Planning Subpackage, (VI) Experimental Methods, (VII) Definition of "Better", (VIII) Results, (IX) Implementation Lessons, (X) Discussion, (XI) Conclusions and Future Work, plus appendices A–E (file-by-file glossary, abbreviation glossary, hyperparameter reference, paper-extraction map, re-generation commands). Both the framework paper and the comprehensive report live in the `References/` folder which is **excluded from the GitHub commit** by `.gitignore` (entry `References/*.*`); all load-bearing claims, equations, and tables from them are inlined into the relevant README files throughout this repository.
 
 ---
 
@@ -60,7 +61,7 @@ The contribution of *this codebase* is the **first full deployment** of LCP on a
 
 ## The LCP framework — what we proved
 
-Full proofs are in [`References/lex_constraint_programming_report_v10_2.md`](References/lex_constraint_programming_report_v10_2.md). The load-bearing statements:
+The load-bearing statements (full proofs live in the framework paper, which is in the gitignored `References/` folder; the statements themselves are inlined here):
 
 **Setting.** A convex constrained-optimisation problem over a compact convex set $\mathcal{Z} \subset \mathbb{R}^n$ with $L$ priority-ordered constraint groups indexed $i = 1, \ldots, L$, each encoding a violation functional
 
@@ -97,9 +98,7 @@ The implementation realises every load-bearing piece: the offline cascade and Al
 ```text
 nuplan-project/
 ├── README.md                                       ← you are here
-├── References/
-│   ├── lex_constraint_programming_report_v10_2.md  ← formal LCP paper (15 sections)
-│   └── comprehensive_report.md                     ← full project report (38 sections / 11 IEEE parts / ~12k words)
+├── References/                                     ← gitignored (References/*.*); contents inlined into READMEs
 ├── workspace/                                      ← application code (everything builds from here)
 │   ├── README.md
 │   ├── mp4_to_gif_recursive.sh                     (utility — MP4 → GIF for the embedded simulation playbacks)
@@ -439,9 +438,7 @@ Every directory of consequence has a `README.md`. The full set:
 
 | Location | Documents |
 |---|---|
-| [`README.md`](README.md) (this file) | Project overview, hero gallery, full quick-start |
-| [`References/lex_constraint_programming_report_v10_2.md`](References/lex_constraint_programming_report_v10_2.md) | Formal LCP paper (15 sections + §14 deployment lessons) |
-| [`References/comprehensive_report.md`](References/comprehensive_report.md) | Full project report (11 IEEE-style sections + 5 appendices + 25-entry reference list) |
+| [`README.md`](README.md) (this file) | Project overview, hero gallery, full quick-start, inlined framework claims, inlined 25-entry reference list |
 | [`workspace/README.md`](workspace/README.md) | Application code layout, quick-start, utility-script notes |
 | [`workspace/lexicone/README.md`](workspace/lexicone/README.md) | LCP package overview (observer + planning) |
 | [`workspace/lexicone/observer/README.md`](workspace/lexicone/observer/README.md) | Observer architecture: RuleEngine, SceneContext, adapters |
@@ -591,7 +588,61 @@ Six directions stand out as natural extensions:
 
 ## Acknowledgments
 
-This project builds on the nuPlan benchmark and devkit (Caesar et al., 2021), the CasADi modelling framework (Andersson et al., 2019), the IPOPT interior-point solver (Wächter & Biegler, 2006), the rulebook paradigm for AV behaviour (Censi et al., 2019), the Hierarchical Quadratic Programming tradition (Escande, Mansard, Wieber, 2014), and the equivalent-weight literature originating in goal programming (Charnes & Cooper, 1961; Sherali, 1982). Full reference list at [`References/comprehensive_report.md`](References/comprehensive_report.md) §References (25 entries).
+This project builds on the nuPlan benchmark and devkit [21], the CasADi modelling framework [24], the IPOPT interior-point solver [23], the rulebook paradigm for AV behaviour [1], the Hierarchical Quadratic Programming tradition [9], and the equivalent-weight literature originating in goal programming [6, 2].
+
+## References
+
+The reference numbering below is shared between the framework paper and the comprehensive report:
+
+[1] A. Censi, K. Slutsky, T. Wongpiromsarn, D. Yershov, S. Pendleton, J. Fu, and E. Frazzoli, "Liability, Ethics, and Culture-Aware Behavior Specification using Rulebooks," in *Proc. IEEE Int. Conf. on Robotics and Automation (ICRA)*, 2019, pp. 8536–8542.
+
+[2] H. D. Sherali, "Equivalent Weights for Lexicographic Multi-Objective Programs: Characterizations and Computations," *European Journal of Operational Research*, vol. 11, no. 4, pp. 367–379, 1982.
+
+[3] F. Eisenbrand, S. Niermann, and M. Skutella, "Lexicographically Optimal Stochastic Programs and Hierarchical Scheduling," *Mathematical Programming*, vol. 95, no. 3, pp. 565–581, 2003.
+
+[4] K. Miettinen, *Nonlinear Multiobjective Optimization*, Kluwer Academic Publishers, 1999.
+
+[5] M. Ehrgott, *Multicriteria Optimization*, 2nd ed., Springer, 2005.
+
+[6] A. Charnes and W. W. Cooper, *Management Models and Industrial Applications of Linear Programming*, Wiley, 1961.
+
+[7] R. E. Steuer, *Multiple Criteria Optimization: Theory, Computation, and Application*, Wiley, 1986.
+
+[8] O. Kanoun, F. Lamiraux, and P.-B. Wieber, "Kinematic Control of Redundant Manipulators: Generalizing the Task-Priority Framework to Inequality Task," *IEEE Transactions on Robotics*, vol. 27, no. 4, pp. 785–792, 2011.
+
+[9] A. Escande, N. Mansard, and P.-B. Wieber, "Hierarchical Quadratic Programming: Fast Online Humanoid-Robot Motion Generation," *International Journal of Robotics Research*, vol. 33, no. 7, pp. 1006–1028, 2014.
+
+[10] U. Schwesinger, M. Rufli, P. Furgale, and R. Siegwart, "A Sampling-Based Partial Motion Planning Framework for System-Compliant Navigation Along a Reference Path," in *Proc. IEEE Intelligent Vehicles Symposium (IV)*, 2013, pp. 391–396.
+
+[11] K. Esterle, V. Aravantinos, and A. Knoll, "From Specifications to Behavior: Maneuver Verification in a Generalized Interface for Autonomous Vehicles," in *Proc. IEEE Intelligent Vehicles Symposium (IV)*, 2020.
+
+[12] A. P. Wierzbicki, "The Use of Reference Objectives in Multiobjective Optimization," in *Multiple Criteria Decision Making Theory and Application*, Lecture Notes in Economics and Mathematical Systems, Springer, 1980, pp. 468–486.
+
+[13] P. L. Yu, "A Class of Solutions for Group Decision Problems," *Management Science*, vol. 19, no. 8, pp. 936–946, 1973.
+
+[14] M. Zeleny, "Compromise Programming," in *Multiple Criteria Decision Making*, J. L. Cochrane and M. Zeleny, Eds., University of South Carolina Press, 1973, pp. 262–301.
+
+[15] J. Branke, K. Deb, H. Dierolf, and M. Osswald, "Finding Knees in Multi-Objective Optimization," in *Parallel Problem Solving from Nature (PPSN VIII)*, Lecture Notes in Computer Science, Springer, 2004, pp. 722–731.
+
+[16] I. Das, "On Characterizing the 'Knee' of the Pareto Curve Based on Normal-Boundary Intersection," *Structural Optimization*, vol. 18, no. 2–3, pp. 107–115, 1999.
+
+[17] J. Nocedal and S. J. Wright, *Numerical Optimization*, 2nd ed., Springer, 2006.
+
+[18] D. P. Bertsekas, *Nonlinear Programming*, 3rd ed., Athena Scientific, 2016.
+
+[19] R. T. Rockafellar, *Convex Analysis*, Princeton University Press, 1970.
+
+[20] S. Boyd and L. Vandenberghe, *Convex Optimization*, Cambridge University Press, 2004.
+
+[21] H. Caesar, J. Kabzan, K. S. Tan, W. K. Fong, E. Wolff, A. Lang, L. Fletcher, O. Beijbom, and S. Omari, "nuPlan: A Closed-Loop ML-based Planning Benchmark for Autonomous Vehicles," in *Proc. CVPR ADP3 Workshop*, 2021.
+
+[22] M. Treiber, A. Hennecke, and D. Helbing, "Congested Traffic States in Empirical Observations and Microscopic Simulations," *Physical Review E*, vol. 62, no. 2, pp. 1805–1824, 2000.
+
+[23] A. Wächter and L. T. Biegler, "On the Implementation of an Interior-Point Filter Line-Search Algorithm for Large-Scale Nonlinear Programming," *Mathematical Programming*, vol. 106, no. 1, pp. 25–57, 2006.
+
+[24] J. A. E. Andersson, J. Gillis, G. Horn, J. B. Rawlings, and M. Diehl, "CasADi: A Software Framework for Nonlinear Optimization and Optimal Control," *Mathematical Programming Computation*, vol. 11, no. 1, pp. 1–36, 2019.
+
+[25] B. Efron, "Better Bootstrap Confidence Intervals," *Journal of the American Statistical Association*, vol. 82, no. 397, pp. 171–185, 1987.
 
 ---
 
