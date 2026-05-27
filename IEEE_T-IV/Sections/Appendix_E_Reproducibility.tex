@@ -1,0 +1,76 @@
+% Appendix E: Reproducibility Manifest. Scope-B build chain.
+
+\subsection*{E.1\ Build chain}
+
+The end-to-end reproduction of every figure, table, and numerical claim in this manuscript runs in three phases.
+
+\paragraph{Phase~A --- framework regression.} Verify the \texttt{lcp} reference implementation against \cite{lcp2025}'s worked examples.
+
+\begin{verbatim}
+cd workspace
+python -m pytest lcp/tests/        # 55 tests, < 1 s
+python examples/lcp_demo_v10_2.py  # Example 1 end-to-end
+python examples/lcp_demo_example2.py
+\end{verbatim}
+
+The regression suite reproduces $w^\dagger = (5.5, 5.5)$, $r^\dagger = 4.5$ for Example~1; $c_1 = 7$, $\kappa_1[3] = 0.75$, witness slack $5.5$ for Example~2. The two demo scripts replay the full pipeline (diagnostics $\to$ Algorithm~1A/1B $\to$ cascade-vs-WS solve $\to$ compliance check $\to$ \S10.2 necessity probe) end-to-end against the paper-published numbers.
+
+\paragraph{Phase~B --- closed-loop dual-condition protocol.} Re-run the 32-scenario protocol on \texttt{nuPlan-mini}.
+
+\begin{verbatim}
+cd workspace
+
+# C1 (operational WS-L1; ~2 min/scenario, ~30 min total)
+NUPLAN_EXP_ROOT=/workspace/nuplan-project/exp \
+  python examples/12_batch_two_level_mpc_planner.py \
+    --penalty-form l1 --runtime-mode ws --seed 7 \
+    --output-dir examples/outputs/manuscript/C1_instrumented
+
+# C4 (cascade reference; ~14 min/scenario, ~4 h total)
+NUPLAN_EXP_ROOT=/workspace/exp_worker_c4/exp \
+  python examples/12_batch_two_level_mpc_planner.py \
+    --penalty-form l1 --runtime-mode cascade --seed 7 \
+    --output-dir examples/outputs/manuscript/C4_cascade
+\end{verbatim}
+
+Each batch emits one MP4 + summary PNG + per-tick \texttt{*\_log.csv} per scenario, plus a per-batch \texttt{batch\_summary\_l1.csv}.
+
+\paragraph{Phase~C --- artefact generation + LaTeX build.}
+
+\begin{verbatim}
+cd workspace
+bash examples/regen_manuscript.sh   # diagnostics + necessity scans
+                                    # + figures + tables to IEEE_T-IV/
+
+cd ../IEEE_T-IV
+pdflatex Main && bibtex Main \
+  && pdflatex Main && pdflatex Main
+\end{verbatim}
+
+The \texttt{regen\_manuscript.sh} script invokes \texttt{scan\_diagnostics.py}, \texttt{scan\_necessity.py}, and \texttt{make\_manuscript\_artefacts.py}, which mirror the generated figures into \texttt{IEEE\_T-IV/Figures/} and the \texttt{\textbackslash input\{\}}able tables into \texttt{IEEE\_T-IV/Sections/tables/}.
+
+\subsection*{E.2\ Software versions}
+
+The deployment uses the Python scientific stack with the following pinned versions (the project \texttt{requirements.txt} is the authoritative source).
+
+\begin{table}[h]
+    \centering
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l l X@{}}
+        \toprule
+        Package & Version & Role \\
+        \midrule
+        Python & 3.9.23 & runtime \\
+        numpy / scipy & 1.x / 1.7+ & linear algebra, \texttt{scipy.optimize.linprog} (HiGHS) for Algorithms 0/1A/1B \\
+        casadi & 3.5+ & nonlinear-program modelling and IPOPT interface \\
+        ipopt & 3.14+ & interior-point inner-OCP solver \\
+        nuplan-devkit & per pin & closed-loop simulator, scenario filter, \texttt{run\_simulation.py} \\
+        matplotlib & 3.x & figure rendering (\texttt{scripts/ieee\_style.py} for IEEEtran column widths) \\
+        pytest, hypothesis & latest & regression test suite \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{E.3\ Hardware spec}
+
+The protocol was executed on a single workstation. Each batch runs \texttt{worker=sequential} (one scenario at a time per process) and the two batches can be parallelised across distinct \texttt{NUPLAN\_EXP\_ROOT} directories. Memory peak per process is dominated by the nuPlan SimulationLog buffer ($\sim 1$~GB per 15-second scenario). Disk footprint per scenario is $\sim 50$~MB (MP4 + summary PNG + per-tick CSV); the full 32-scenario protocol fits in a few GB.

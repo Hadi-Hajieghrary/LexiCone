@@ -1,0 +1,45 @@
+% Appendix B: Pseudocode + Complexity for Algorithms 0, 1A, 1B. Detailed
+% inline pseudocode for 1A/1B is given in §II; this appendix adds Algorithm 0
+% (homogeneous-cone primary) and the complexity bounds + verification anchors
+% for all three.
+
+We supply here the pseudocode for Algorithm~0 (the homogeneous-cone primary formulation of \cite{lcp2025}~\S9.1; the detailed pseudocode for Algorithms~1A and~1B already appears inline in Sections~\ref{sec:foundations:alg1a} and~\ref{sec:foundations:alg1b}) together with complexity bounds and the empirical verification anchors for all three.
+
+\subsection*{Algorithm 0 (homogeneous-cone primary, \cite{lcp2025} \S9.1)}
+
+\begin{algorithm}
+\caption{\textsc{Alg.\ 0 --- homogeneous-cone primary}}
+\label{alg:alg0}
+\begin{algorithmic}[1]
+\Require active rule-encoder gradients $\{\nabla g_{i,j}\}$ at $z_{\mathrm{lex}}^\star$, performance gradient $\nabla J$, hard inequalities $\{\nabla g_{\mathrm{phys},p}\}$, equalities $\{\nabla h_e\}$; per-level lower bounds $\underline w_i > 0$; performance-coefficient lower bound $\underline\beta > 0$.
+\Ensure unit-performance weights $\bar w \in \Omega(p^\star)$.
+\State Form variables $[w \in \mathbb R^L\,|\,\beta \in \mathbb R\,|\,\alpha \in \mathbb R^{n_{\mathrm{bdy}}}\,|\,\lambda \in \mathbb R^{n_{\mathrm{phys}}}\,|\,\mu \in \mathbb R^{n_{\mathrm{eq}}}\,|\,r \in \mathbb R]$.
+\State Add the $d$-dim KKT stationarity equality $\beta \nabla J + \sum_{(i,j)} \alpha_{i,j} \nabla g_{i,j} + \sum_p \lambda_p \nabla g_{\mathrm{phys},p} + \sum_e \mu_e \nabla h_e = 0$.
+\State Add the simplex-slice equality $\beta + \sum_i w_i = 1$.
+\State Add Chebyshev face slacks: $w_i - \underline w_i \ge r$; $\beta - \underline\beta \ge r$; $\alpha_{i,j} \ge r$; $w_i - \alpha_{i,j} \ge r$; $\lambda_p \ge r$; $r \ge 0$.
+\State Solve $\max r$ by linear programming, yielding $(w^\sharp, \beta^\sharp, r^\sharp)$.
+\State \Return $\bar w := w^\sharp / \beta^\sharp$.
+\end{algorithmic}
+\end{algorithm}
+
+The homogeneous-cone primary formulation is operator-supplied-box-free: the lower bounds $\underline w_i, \underline\beta$ are positivity floors only and the simplex-slice equality bounds the LP by construction. The projection $\bar w_i = w_i^\sharp / \beta^\sharp$ recovers unit-performance WS weights in $\Omega(p^\star)$.
+
+\subsection*{Complexity}
+
+For fixed priority depth $L$ and fixed weight box $\mathcal W$, Algorithm~\ref{alg:alg1a} runs in time polynomial in the size $A$ of the cascade-active-set signature $p^{\star}$. The cascade solve at step~1 is one nonlinear program at convex-QP complexity (interior-point at the inner OCP, with $O(N \cdot d)$ decision variables for horizon $N$ and per-step state-control dimension $d$). The KKT-system formation at step~2 is $O(A)$. The Fourier--Motzkin elimination at step~3 produces a half-space description of $\Omega(p^{\star})$ with at most $|H| = O(A^{2})$ inequalities (the elimination doubles the number of constraints per eliminated variable in the worst case; the cascade structure typically keeps $|H|$ much smaller in practice). The Chebyshev-centre linear program at step~4 has $L + 1$ unknowns (the weight vector $w$ and the inscribed-ball radius $r$) and $|H| + 2L$ constraints (the half-space description plus the per-dimension weight-box bounds), solved by \texttt{scipy.optimize.linprog} in polynomial time in $|H|$.
+
+Algorithm~\ref{alg:alg1b} adds the singular-perturbation sensitivity-constant extraction at step~2 (one reduced-KKT linear system) and the coupled-linear formation at step~3. The verification step at step~5 reruns the WS solve at $w^{\dagger}$ and reads the resulting per-level violations; one additional convex-QP solve.
+
+Algorithm~\ref{alg:alg0} is the same Chebyshev-LP construction as Algorithm~1A but on the homogeneous-cone simplex slice rather than the operator-supplied box; the LP has $L + 1 + n_{\mathrm{bdy}} + n_{\mathrm{phys}} + n_{\mathrm{eq}} + 1$ unknowns and one more equality constraint than Algorithm~1A. Its complexity is therefore the same up to constants.
+
+\subsection*{Verification anchors}
+
+All three algorithms are unit-tested in the deployment codebase against the analytical worked examples of~\cite{lcp2025} \S11:
+
+\begin{itemize}[leftmargin=*]
+    \item Algorithm~\ref{alg:alg1a} against Example~1 (\cite{lcp2025} \S11.1, two-priority $L_1$ LP) reproduces $w^{\dagger} = (5.5, 5.5)$, $r^{\dagger} = 4.5$, $\beta_{\mathrm{at\_opt}} = (1.0, 1.0)$; the equivalence region returned by \texttt{omega\_half\_space\_description} reduces to $\{w_1 \ge 1\} \cap \{w_2 \ge 1\}$ as the paper states.
+    \item Algorithm~\ref{alg:alg1b} against Example~2 (\cite{lcp2025} \S11.2, three-priority $L_2$ QP) reproduces the sensitivity constants $c_1 = 7$ and $\kappa_1 = (0, 0, 0.75)$; the threshold function returns $W_1(\epsilon_1 = 0.01, w_3 = 1) \approx 77.5$ and $W_1(\epsilon_1 = 0.01, w_3 = 10) = 145$; the paper's exhibited witness $(200, 100, 10)$ achieves un-divided threshold slack $0.1 \cdot 200 - 0.75 \cdot 10 - 7 = 5.5$.
+    \item Algorithm~\ref{alg:alg0} against Example~1 produces a projected $\bar w$ satisfying $\bar w_1, \bar w_2 \ge 1$ (i.e., inside $\Omega(p^\star)$) without an operator-supplied box.
+\end{itemize}
+
+The tests live at \texttt{workspace/lcp/tests/test\_equivalence\_alg0.py}, \texttt{test\_equivalence\_alg1a.py}, and \texttt{test\_equivalence\_alg1b.py}. The full 55-test suite (Algorithms 0/1A/1B + diagnostics + online deployment + relaxation + cache + compliance + upper image) passes in $< 1$~s and is the empirical evidence that the \texttt{lcp} reference implementation reproduces \cite{lcp2025} faithfully to $10^{-6}$ precision.

@@ -1,0 +1,28 @@
+\begin{table}[t]
+    \centering
+    \caption{Pre-flight diagnostics (\cite{lcp2025} \S8.5) per benchmark scenario. LICQ rank reports the rank of the combined active-gradient matrix at the peak-violation tick of the $C_1$ run; framework applies iff FM~I (LICQ full rank) and FM~II (convexity) both hold.}
+    \label{tab:diagnostics}
+    \footnotesize
+\begin{tabular}{llllll}
+\toprule
+scenario & peak\_active\_count & licq\_rank & licq\_n\_columns & licq\_deficit & framework\_applies \\
+\midrule
+01\_following\_slow\_lead\_\_l1 & 8 & 8 & 8 & 0 & True \\
+02\_near\_long\_vehicle\_\_l1 & 7 & 7 & 7 & 0 & True \\
+03\_near\_multiple\_vehicles\_\_l1 & 6 & 6 & 6 & 0 & True \\
+04\_changing\_lane\_\_l1 & 8 & 8 & 8 & 0 & True \\
+05\_changing\_lane\_left\_\_l1 & 8 & 8 & 8 & 0 & True \\
+06\_changing\_lane\_right\_\_l1 & 3 & 3 & 3 & 0 & True \\
+07\_starting\_left\_turn\_\_l1 & 6 & 6 & 6 & 0 & True \\
+08\_starting\_right\_turn\_\_l1 & 3 & 3 & 3 & 0 & True \\
+09\_high\_speed\_turn\_\_l1 & 5 & 5 & 5 & 0 & True \\
+10\_low\_speed\_turn\_\_l1 & 6 & 6 & 6 & 0 & True \\
+11\_protected\_cross\_\_l1 & 6 & 6 & 6 & 0 & True \\
+12\_unprotected\_cross\_\_l1 & 6 & 6 & 6 & 0 & True \\
+13\_high\_magnitude\_speed\_\_l1 & 3 & 3 & 3 & 0 & True \\
+14\_medium\_magnitude\_speed\_\_l1 & 4 & 4 & 4 & 0 & True \\
+15\_near\_high\_speed\_vehicle\_\_l1 & 7 & 7 & 7 & 0 & True \\
+16\_traversing\_intersection\_\_l1 & 5 & 5 & 5 & 0 & True \\
+\bottomrule
+\end{tabular}
+\end{table}

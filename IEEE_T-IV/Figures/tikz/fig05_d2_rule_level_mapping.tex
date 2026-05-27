@@ -1,0 +1,34 @@
+% Fig.5 (D2) — Operational rule taxonomy used by the per-tick OCP.
+% Implemented as a real table rather than a free-form diagram so the level,
+% semantics, and reserved slots stay aligned at publication scale.
+
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{4pt}
+\small
+\centering
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.95cm} >{\raggedright\arraybackslash}p{1.75cm} X >{\raggedright\arraybackslash}p{3.2cm}}
+  \toprule
+  \rowcolor{black!5}
+  \textbf{Level} & \textbf{Priority class} & \textbf{Active planner semantics} & \textbf{Reserved slots} \\
+  \midrule
+  \rowcolor{red!8}
+  $L_{\mathrm{S}}$ & Safety &
+  10r0 VRU collision avoidance; 9r0 vehicle collision avoidance; 7r0 lane-corridor adherence; 7r5 sidewalk avoidance &
+  10r5 bicycle-lane encroachment \\
+  \rowcolor{orange!10}
+  $L_{\mathrm{L}}$ & Legal &
+  3r0 speed-limit compliance; 7r1 traffic-light compliance; 7r2 opposing-lane avoidance; 7r3 one-way compliance &
+  7r4 crosswalk stop region \\
+  \rowcolor{green!9}
+  $L_{\mathrm{C}}$ & Comfort &
+  3r3 safe headway; 3r5 lateral clearance; 1r11 lateral acceleration; 0r2 longitudinal comfort; 0r3 lateral comfort &
+  3r6 lane-intrusion buffer \\
+  \rowcolor{blue!8}
+  $L_{\mathrm{E}}$ & Efficiency &
+  Position tracking; heading tracking; speed tracking; control smoothness &
+  no reserved slots \\
+  \bottomrule
+\end{tabularx}
+
+\vspace{2mm}
+{\scriptsize\sffamily Rule identifiers are shown only as references back to Table~\ref{tab:rulebook}. Reserved slots are inactive in the current deployment and remain outside the lex-dominance metric.}

@@ -1,0 +1,56 @@
+% Fig.3 (B2) — Algorithm 1B flow (L_2 tolerance-compliance calibration).
+% Vertical column with a decision diamond and a feedback loop routed around
+% the right side of the column (no crossing of intermediate boxes).
+% Single-column (IEEE \columnwidth ~ 8.4 cm).
+%
+% Width budget: column boxes are 7.0 cm wide (centred); feedback path runs
+% along x = +4.0 cm to +4.6 cm to stay clear of the box's right edge
+% (which extends to x = +3.5 cm).
+
+\input{./Figures/tikz/styles}
+\begin{tikzpicture}[node distance=3.5mm]
+  \node[colblockio, semioffline] (input) {%
+    \textbf{$L_2$ deployment target}\\[-1pt]
+    \scriptsize tolerance vector $\boldsymbol{\epsilon}$ and feasible weight box $\mathcal{W}$
+  };
+  \node[colblock, semianalysis, below=of input] (lex) {%
+    \textbf{1. Lex reference solve}\\[-1pt]
+    \scriptsize outputs $(z_{\mathrm{lex}}^{\star},\ p^{\star})$
+  };
+  \node[colblock, semianalysis, below=of lex] (sens) {%
+    \textbf{2. Sensitivity extraction}\\[-1pt]
+    \scriptsize singular-perturbation coefficients $(c_i,\kappa_i)$ at $p^{\star}$
+  };
+  \node[colblock, semianalysis, below=of sens] (thresh) {%
+    \textbf{3. Threshold synthesis}\\[-1pt]
+    \scriptsize admissible lower bounds $W_i(\epsilon_i, w_{-i})$
+  };
+  \node[colblock, seminovel, below=of thresh] (lp) {%
+    \textbf{4. Weight calibration}\\[-1pt]
+    \scriptsize coupled Chebyshev-centre LP under the threshold constraints
+  };
+  \node[coldecision, semidecision, below=6mm of lp] (verify) {%
+    Compliance preserved?\\[-1pt]
+    $b_{\epsilon}(z_{\mathrm{ws}}^{\star}(w^{\dagger})) = b_{\epsilon}^{\star}$
+  };
+  \node[colblockio, semiruntime, below=6mm of verify] (out) {%
+    \textbf{Offline artefacts}\\[-1pt]
+    \scriptsize calibrated weight $w^{\dagger}$ and cached reference $b_{\epsilon}^{\star}$
+  };
+
+  \draw[flow] (input.south)  -- (lex.north);
+  \draw[flow] (lex.south)    -- (sens.north);
+  \draw[flow] (sens.south)   -- (thresh.north);
+  \draw[flow] (thresh.south) -- (lp.north);
+  \draw[flow] (lp.south)     -- (verify.north);
+  \draw[flow] (verify.south) -- node[arrowlbl, right=2pt] {match} (out.north);
+
+  % Feedback (mismatch) — route around the right side, between thresh and
+  % verify, well clear of any box's right edge (boxes extend to x ≈ +3.5 cm).
+  \coordinate (rEast)   at ([xshift=8mm] verify.east);
+  \coordinate (rThresh) at ([xshift=8mm] thresh.east);
+  \draw[feedback]
+    (verify.east) -- (rEast)
+    node[arrowlbl, above=1pt, midway] {mismatch: tighten tolerance}
+    -- (rThresh) -- (thresh.east);
+\end{tikzpicture}

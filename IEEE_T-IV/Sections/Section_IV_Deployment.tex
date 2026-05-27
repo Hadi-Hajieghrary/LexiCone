@@ -1,0 +1,200 @@
+% Section IV: Closed-Loop Deployment - System Architecture. The longest
+% section. Twelve "lessons" (Table XV) frame the fourteen subsections: §IV.A
+% is the architectural framing; §IV.B is the per-level epigraph-slack OCP;
+% §IV.C-§IV.L are the eleven implementation primitives (each one a paragraph
+% + cite to the planner module); §IV.M is the per-tick CSV instrumentation
+% added in Phase 0.2; §IV.N is the observer subsystem.
+
+We now describe the closed-loop deployment of the LCP framework on the nuPlan simulator. The deployment realises the operational workflow of Fig.~\ref{fig:state_machine} as a concrete two-level Model Predictive Control pipeline (Section~\ref{sec:deployment:pipeline}), realises each per-tick weighted-sum solve as a convex linearised optimal control problem (OCP) with per-level epigraph slacks (Section~\ref{sec:deployment:ocp}), and threads eleven implementation primitives through the pipeline that the convex framework of~\cite{lcp2025} does not directly address. Table~\ref{tab:lessons_learned} consolidates the eleven primitives plus the observer subsystem (Section~\ref{sec:deployment:observer}) as a roster mapping each lesson to (a)~the problem it solves, (b)~the symptom expected if the primitive is absent, (c)~the workaround we chose, and (d)~the alternative we considered. The roster is the practitioner-facing artefact of the deployment.
+
+\begin{table*}[t]
+    \centering
+    \caption{Lessons learned from the closed-loop LCP-MPC deployment on nuPlan. Each row consolidates one implementation primitive (or, in the final row, the observer subsystem) as a four-column entry: the operational problem it solves, the failure symptom expected if the primitive is absent, the workaround we adopted, and the alternative we considered but rejected. The roster is the central contribution of Section~\ref{sec:deployment} and is cross-referenced from Section~\ref{sec:discussion:buys}.}
+    \label{tab:lessons_learned}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l X X X X@{}}
+        \toprule
+        Primitive (\S) & Problem solved & Symptom under ablation & Workaround chosen & Alternative considered \\
+        \midrule
+        SLP outer loop (\S\ref{sec:deployment:slp})
+            & Kinematic bicycle dynamics are non-convex; the convex framework assumes convexity.
+            & Tracking error grows on high-curvature ticks; OCP becomes infeasible near aggressive turns.
+            & Sequential linearisation about the warm-start with re-solve until trajectory residual $< 0.05$~m.
+            & Full sequential quadratic programming (SQP): more expensive per outer iteration; harder to warm-start. \\
+        \midrule
+        Rule encoders (\S\ref{sec:deployment:encoders})
+            & The convex framework requires per-tick affine inequalities; observer rules are described semantically.
+            & Without encoders the OCP has no rule-driven shape and the planner reduces to a kinematic tracker.
+            & 12 encoders covering 13 MPC-controlled rule IDs; each encoder emits per-(slot, step) coefficients $(a, b, e)$.
+            & One encoder per rule (12 vs. 13 cardinality through the combined collision encoder); per-rule duplication. \\
+        \midrule
+        Polygon-to-half-plane reduction (\S\ref{sec:deployment:polygon})
+            & Walkway and lane polygons induce non-convex disjunctions (``avoid the union of these polygons'').
+            & The OCP becomes a mixed-integer program with discrete polygon selectors; intractable at 10~Hz.
+            & Closest-face heuristic keyed on the warm-start: emit one half-plane per slot, against the nearest polygon face.
+            & Union of half-spaces (large per-slot budget); soft-constraint formulation (loses the exact-feasibility guarantee). \\
+        \midrule
+        Applicability masking (\S\ref{sec:deployment:masks})
+            & The number of applicable rules per tick varies; the OCP's variable layout must be static for CasADi precompilation.
+            & Dynamic slot allocation breaks warm-starting; per-tick CasADi function rebuilds add seconds of latency.
+            & Static maximum slot budget per level; per-(level, slot, step) binary mask $\mu \in \{0,1\}$; offset $e \leftarrow -M$ when inactive.
+            & Dynamic OCP rebuild per tick (10$\times$ slower); single over-large fixed budget without masking (wastes slots). \\
+        \midrule
+        Cross-step coupling (\S\ref{sec:deployment:cross-step})
+            & Temporal-derivative rules (jerk, lateral jerk) span multiple ticks; the per-step linear template cannot express them.
+            & Single-step proxies are conservative; the exact constraint is unenforceable.
+            & Single-step proxies (e.g., $|a_y|$ bound as a one-step lateral-jerk proxy) calibrated against the offline cascade.
+            & Two-step or three-step template (more decision variables); approximate via terminal cost (loses the tight bound). \\
+        \midrule
+        Ego-local-frame solving (\S\ref{sec:deployment:frame})
+            & UTM coordinates at $10^{5}$--$10^{6}$~m destroy IPOPT's internal scaling; squared-distance penalties overflow.
+            & IPOPT iteration limit reached; warm-start broken on every tick; convergence stalls.
+            & Transform to a frame with the ego rear axle at the origin, heading along $+x$; solve; transform back.
+            & Manual variable-scaling matrix on world-frame variables (error-prone); switch to CVXPY (slower). \\
+        \midrule
+        $L_1$ Tikhonov regularisation (\S\ref{sec:deployment:frame})
+            & The $L_1$ violation functional is non-smooth; the reduced Hessian is not strictly positive definite at the solution.
+            & IPOPT line-search stalls; tick-to-tick warm-start drifts.
+            & Add a $\eta \sum T_{i,j,k}^2$ regulariser with $\eta = 10^{-6}$; keeps semantics unbiased to first order.
+            & Switch to $L_2$ penalty (loses exact-equivalence regime); replace IPOPT with a non-smooth solver (slower). \\
+        \midrule
+        WS--cascade dual mode (\S\ref{sec:deployment:dual-mode})
+            & The cascade is the formal reference but $\approx 7\times$ slower than weighted sum; weighted sum needs calibration.
+            & Single-mode deployment forces a difficult speed-vs-fidelity tradeoff.
+            & Two modes: \texttt{ws} (calibrated weighted sum) for online deployment; \texttt{cascade} for offline reference + fallback.
+            & Weighted sum only (no formal reference for the comparative protocol); cascade only (cannot meet 10~Hz). \\
+        \midrule
+        Offline calibration cache (\S\ref{sec:deployment:cache})
+            & Re-running Algorithm~\ref{alg:alg1a} per tick is prohibitive ($\approx$~tens of seconds per scenario class).
+            & 8--15~s of latency per scenario-class entry; real-time deployment impossible.
+            & JSON-backed cache keyed on $(\text{scenario class}, \text{penalty form}, \boldsymbol{\epsilon})$; offline pre-population.
+            & Amortised online recalibration (race conditions across ticks); per-scenario fresh calibration (no cache benefit). \\
+        \midrule
+        Runtime compliance checker (\S\ref{sec:deployment:compliance})
+            & The weighted-sum solution may drift from the lex optimum when the active set changes between ticks.
+            & Silent degradation of priority semantics; the framework's lex guarantee is lost without notification.
+            & Per-tick comparison $b_{\epsilon}(z_{\mathrm{ws}}^{\star}) \stackrel{?}{=} b_{\epsilon}^{\star}$; mismatch is logged, optional cascade fallback.
+            & Trust the calibration unconditionally (silently breaks); always run the cascade (defeats the calibration's purpose). \\
+        \midrule
+        Serialisation-tolerance contract (\S\ref{sec:deployment:serialisation})
+            & nuPlan's \texttt{SimulationLog.save\_to\_file()} pickles the planner; CasADi SwigPyObjects cannot pickle.
+            & Pickle exception at the end of every simulation; the log is unsavable.
+            & \texttt{\_\_getstate\_\_} drops CasADi attributes (and the new per-tick CSV handles); \texttt{\_\_setstate\_\_} rebuilds.
+            & Skip log save (loses replayability); pickle-friendly wrapper around CasADi (large refactor). \\
+        \midrule
+        Observer subsystem (\S\ref{sec:deployment:observer})
+            & Planner-side encoders are convex proxies; the truth-of-record needs a venue-agnostic per-rule evaluator.
+            & The planner asserts ``rule X respected'' but the assertion is unverified against the simulator state.
+            & 25-rule observer engine runs in parallel, evaluates each rule per tick, emits independent rule-evaluation records.
+            & Trust the planner-side encoders (no cross-check); reuse nuPlan's bundled metrics (loses cross-venue generality). \\
+        \bottomrule
+    \end{tabularx}
+\end{table*}
+
+\subsection{Two-Level MPC Pipeline}
+\label{sec:deployment:pipeline}
+
+\begin{figure*}[t]
+    \centering
+    \input{./Figures/tikz/fig06_d1_two_level_pipeline}
+    \caption{Two-level Model Predictive Control deployment architecture. The \emph{outer level} refreshes the route guidance at an $8$~s cadence and provides a $200$~m reference corridor. The \emph{inner level} lifts the local scene, encodes the active rule set, and solves the convex LCP-MPC problem inside an SLP loop at $10$~Hz. A runtime compliance check sits directly after the solve and branches to either accepted execution or mismatch handling.}
+    \label{fig:two_level_pipeline}
+\end{figure*}
+
+We realise the operational workflow of Fig.~\ref{fig:state_machine} as the two-level pipeline of Fig.~\ref{fig:two_level_pipeline}. The outer level extracts a global route from nuPlan's lane graph via breadth-first search restricted to the scenario's route corridor, re-extracts at the replan cadence to bound route-following error, and feeds a continuous reference centreline to the inner level. The inner level performs per-tick OCP solves at the simulator's $10$~Hz cadence on the current reference. Each per-tick solve is itself an SLP outer iteration (\S\ref{sec:deployment:slp}): the planner linearises the kinematic-bicycle dynamics about the previous tick's solution and re-solves the convex inner OCP until the trajectory increment falls below a tolerance $\rho_{\mathrm{tol}} = 0.05$~m or a per-tick iteration budget is reached. The decoupling of global routing from per-tick OCP is not optional: a monolithic single-level OCP over the full route window would not meet the $100$~ms per-tick budget, and a single-level OCP without re-routing would fail to recover from off-route excursions exceeding the corridor.
+
+\subsection{Per-Level Epigraph-Slack OCP}
+\label{sec:deployment:ocp}
+
+The convex linearised OCP at each SLP inner iteration is a quadratic program in the local-frame state $\tilde{x}_{k}$, control $\tilde{u}_{k}$, and per-level slack matrices $T_i \in \mathbb{R}^{\mathrm{slots}_i \times N}$:
+\begin{equation}
+    \min_{\tilde{x}, \tilde{u}, T}\ J(\tilde{x}, \tilde{u}) + \sum_{i=1}^{L} w_i^{\dagger}\, V_i(T_i) + \eta \sum_{i,j,k} T_{i,j,k}^{2}
+    \label{eq:lcp-ocp}
+\end{equation}
+subject to the linearised dynamics $\tilde{x}_{k+1} = A_k \tilde{x}_k + B_k \tilde{u}_k + c_k$, actuator bounds, slew-rate bounds, and the per-level epigraph constraints
+\begin{equation}
+    a_{i,j,k}^{T} \tilde{x}_k + b_{i,j,k}^{T} \tilde{u}_k + e_{i,j,k}\, \mu_{i,j,k} \leq T_{i,j,k}, \quad T_{i,j,k} \geq 0.
+    \label{eq:lcp-epigraph}
+\end{equation}
+The triple $(a_{i,j,k}, b_{i,j,k}, e_{i,j,k})$ is the per-tick affine coefficient emitted by the rule encoder at level $i$, slot $j$, step $k$; the binary mask $\mu_{i,j,k} \in \{0, 1\}$ deactivates the constraint when the rule is not applicable at that step (\S\ref{sec:deployment:masks}); the Tikhonov regulariser with $\eta = 10^{-6}$ ensures the reduced Hessian is positive definite (\S\ref{sec:deployment:frame}). The violation functional $V_i$ is the column sum of $T_i$ under $L_1$ and the column-squared sum under $L_2$. The full implementation is at \texttt{workspace/lexicone/planning/lcp\_mpc.py}.
+
+\subsection{Sequential Linear Programming Outer Loop}
+\label{sec:deployment:slp}
+
+The framework of~\cite{lcp2025} assumes convex constraints and convex dynamics. The kinematic bicycle $\dot p = v\cos\psi$, $\dot q = v\sin\psi$, $\dot\psi = (v/L)\tan\delta$ is non-convex in heading $\psi$. We recover convexity locally by linearising the dynamics around the warm-start trajectory $\tilde z^{(j)}$ at each SLP outer iteration $j$:
+\begin{equation}
+    \tilde z^{(j+1)} \;=\; \arg\min_{z} \; J(z) + \sum_i w_i V_i(z)\quad \text{s.t.}\quad x_{k+1} = A_k^{(j)} x_k + B_k^{(j)} u_k + c_k^{(j)},
+    \label{eq:slp-iter}
+\end{equation}
+where $(A_k^{(j)}, B_k^{(j)}, c_k^{(j)})$ is the Jacobian-based first-order Taylor expansion of $f$ at $(\tilde x_k^{(j)}, \tilde u_k^{(j)})$. The convergence metric is the trajectory residual
+\begin{equation}
+    \rho^{(j)} \;:=\; \max_{k \in \{0, \ldots, N\}} \bigl\| \tilde z_k^{(j+1)} - \tilde z_k^{(j)} \bigr\|_2
+    \label{eq:slp-residual}
+\end{equation}
+between successive SLP iterates. We declare convergence when $\rho^{(j)} < \rho_{\mathrm{tol}} = 0.05$~m or when the iteration cap is reached. The cap is a hyperparameter: \texttt{slp\_max\_iterations}=1 for operational deployment (sufficient on most ticks of the benchmark), \texttt{slp\_max\_iterations}=3--5 for offline calibration. Both protocol conditions $C_1$ and $C_4$ use the operational cap (the SLP outer loop linearises dynamics around the warm-start independently of the inner-OCP choice between weighted-sum and cascade).
+
+\subsection{Rule Encoders}
+\label{sec:deployment:encoders}
+
+Each MPC-controlled rule of Table~\ref{tab:rulebook} is encoded as one or more per-step affine inequalities of form~\eqref{eq:lcp-epigraph}. The encoder set has 12 modules covering the 13 MPC-controlled rule IDs: the collision encoder is shared between \texttt{9r0} (non-VRU vehicle collisions) and \texttt{10r0} (VRU collisions), reflecting the operational symmetry of the inflated-circle keep-out constraint. The remaining encoders are: lane-corridor, sidewalk-drive, speed-limit, opposing-lane, one-way-direction, traffic-light, safe-headway, longitudinal-comfort, lateral-acceleration, lateral-clearance, and lateral-comfort. Three stub encoders (\texttt{10r5}, \texttt{7r4}, \texttt{3r6}) reserve OCP slot capacity but emit constraints that are always inactive in the current deployment.
+
+The encoder's correctness is a load-bearing claim: the calibration of Algorithm~\ref{alg:alg1a} draws its gradient data from the encoder's behaviour at the lex optimum, so a buggy encoder would calibrate against a faulty proxy. The per-scenario diagnostics scan of Section~\ref{sec:results:framework} (FM~I LICQ on the active rule-encoder gradients at the peak-violation tick of every benchmark scenario) is the operational proxy for the encoder--observer agreement audit: full LICQ rank on every scenario confirms the encoders emit non-degenerate gradients consistent with the rulebook's structural priorities.
+
+\subsection{Polygon-to-Half-Plane Reduction}
+\label{sec:deployment:polygon}
+
+Rules whose feasible set is the complement of a polygon (or a union of polygons) --- walkway avoidance, drivable-boundary maintenance, opposing-lane avoidance --- induce non-convex disjunctions that cannot enter the OCP directly as a convex inequality. We reduce each polygon constraint to a single per-slot half-plane via a warm-start-keyed closest-face heuristic. Concretely, for each OCP slot $j$ at step $k$ and each candidate polygon $\mathcal{P}^{(q)}$, identify the polygon face
+\begin{equation}
+    f^{\star}_{j,k} \;=\; \arg\min_{f \in \mathrm{faces}(\mathcal{P}^{(q)})}\ d\!\bigl(\bar{p}_{j,k},\ f\bigr),
+    \label{eq:closest-face}
+\end{equation}
+where $\bar{p}_{j,k}$ is the slot's projected warm-start point and $d(\cdot, \cdot)$ is the Euclidean point-to-face distance, and emit the outward half-plane $n_{f^{\star}}^{T}(p - p_{0,f^{\star}}) \leq 0$ as the slot's affine constraint. The heuristic is exact whenever $\bar{p}_{j,k}$ lies inside the closest-face Voronoi cell of $\mathcal{P}^{(q)}$ (the planar partition induced by face-perpendicular bisectors); on the boundary case it is conservative when $\bar{p}_{j,k}$ is outside $\mathcal{P}^{(q)}$ and permissive otherwise. The reduction trades exactness of the disjunctive form for tractability at $10$~Hz. In the closed-loop scenarios of Section~\ref{sec:results}, the per-tick re-linearisation of the SLP outer loop moves the warm-start away from the Voronoi boundary on the next tick, so any single-tick conservatism does not accumulate.
+
+\subsection{Applicability Masking and Static Slot Budget}
+\label{sec:deployment:masks}
+
+The number of applicable rules per tick varies across the scenario: speed-limit applies always, opposing-lane applies only in opposing-traffic geometry, headway applies only when there is a lead vehicle inside the sensing radius, and so on. Dynamic slot allocation in the OCP would break warm-starting and force CasADi to rebuild the symbolic problem every tick. We adopt a static slot budget per level (with totals 16, 7, 11 across the three OCP levels) and a per-$(\mathrm{level}, \mathrm{slot}, \mathrm{step})$ binary mask $\mu_{i,j,k}$ that gates each slot's contribution. When a slot is inactive, the encoder emits $e_{i,j,k} \leftarrow -M$ for a large $M$, making the corresponding epigraph constraint trivially satisfied at $T_{i,j,k} = 0$. The mask is recomputed every tick from the observer's applicability predicates; the OCP structure is static.
+
+\subsection{Cross-Step Coupling Workarounds}
+\label{sec:deployment:cross-step}
+
+The convex per-step template expresses only single-step inequalities $g(\tilde{x}_k, \tilde{u}_k) \leq 0$. Rules whose semantics span multiple ticks --- bounded lateral jerk (a third-order quantity in position), bounded longitudinal jerk, multi-step deceleration profiles --- enter the OCP only through single-step proxies. For lateral jerk, the proxy is a bound on the lateral acceleration $|a_y|$ at each step; the bound is calibrated by ablation against the offline cascade to recover an effective lateral-jerk envelope on representative scenarios. The proxy is provably conservative on smooth-trajectory regimes and conservative-in-expectation on burst regimes. Two- or three-step templates would express the cross-step coupling exactly but at the cost of additional decision variables and encoder complexity; we adopt the proxy approach and report the residual cross-step error as a limitation in Section~\ref{sec:discussion}~(\S\ref{sec:discussion:limitations}).
+
+\subsection{Ego-Local-Frame Solving and $L_1$ Tikhonov Regularisation}
+\label{sec:deployment:frame}
+
+nuPlan represents the world in Universal Transverse Mercator (UTM) coordinates with magnitudes $10^{5}$--$10^{6}$~m. Squared-distance penalties at this scale destroy IPOPT's internal scaling: the Hessian's condition number explodes, line search stalls, and warm-start is unreliable. We solve every OCP in an ego-local frame with the rear axle at the origin and heading aligned with $+x$; the reference centreline, obstacles, and rule constraints are transformed in, and the solution is transformed back to the world frame after the solve. The transform is exact and incurs negligible per-tick overhead.
+
+Independently of the frame choice, the $L_1$ violation functional is non-smooth at the constraint boundary: the reduced Hessian of the inner OCP loses positive-definiteness on the active set. We add a Tikhonov term $\eta \sum_{i,j,k} T_{i,j,k}^{2}$ with $\eta = 10^{-6}$ to the objective~\eqref{eq:lcp-ocp}; this regulariser preserves the $L_1$ semantics to first order while restoring strict positive-definiteness for the line-search and the warm-start machinery. The two primitives jointly absorb the numerical-conditioning challenges that the convex framework abstracts away.
+
+\subsection{Weighted-Sum--Cascade Dual Runtime Mode}
+\label{sec:deployment:dual-mode}
+
+The planner exposes a \texttt{runtime\_mode} switch with two values: \texttt{ws} for the calibrated weighted-sum solve at $w^{\dagger}$ (operational deployment) and \texttt{cascade} for the full $L+1$-stage lex cascade per tick (offline reference). The weighted-sum mode runs at approximately one-seventh of the cascade's wall time; the cascade is formally lex-optimal at the linearised inner problem and provides the reference against which the operational mode is compared in Section~\ref{sec:results}. The dual-mode design is not a quirk: it is the operational realisation of the architectural decomposition in Fig.~\ref{fig:state_machine} (offline cascade calibrates $w^{\dagger}$; online weighted sum at $w^{\dagger}$ deploys), with the cascade also serving as the fallback path when the runtime compliance checker (\S\ref{sec:deployment:compliance}) raises a mismatch.
+
+\subsection{Offline Calibration Cache}
+\label{sec:deployment:cache}
+
+Algorithm~\ref{alg:alg1a} (or~\ref{alg:alg1b}) costs $\approx$~tens of seconds per scenario class --- the cascade solve, the KKT-system formation, the Fourier--Motzkin elimination, and the Chebyshev-centre linear program together --- which is prohibitive at the $10$~Hz simulator tick rate. We cache the calibration result in a JSON-backed file keyed on $(\text{scenario class}, \text{penalty form}, \boldsymbol{\epsilon})$; entries are $(w^{\dagger}, b_{\epsilon}^{\star})$ pairs. The cache is pre-populated by an offline pass over the scenario-class catalogue; cache hits are looked up in microseconds. The implementation is at \texttt{workspace/lexicone/planning/calibration\_cache.py}; the deployment falls back to heuristic defaults on a cache miss and emits a warning so the operator can pre-populate the missing entry.
+
+\subsection{Runtime Compliance Checker}
+\label{sec:deployment:compliance}
+
+The weighted-sum solution at $w^{\dagger}$ is provably equivalent to the lex optimum only on the active set at which $w^{\dagger}$ was calibrated. When the operational active set drifts away from the calibration active set --- a new agent enters the sensing radius, a traffic-light state changes, the ego's lane assignment changes --- the equivalence guarantee weakens. The runtime compliance checker addresses this by computing the per-level binary compliance vector $b_{\epsilon}(z_{\mathrm{ws}}^{\star}) \in \{0,1\}^{L}$ at every tick and comparing it to the cached reference $b_{\epsilon}^{\star}$ from the offline cascade. A match certifies that the active-set structure has not drifted; a mismatch is logged at \texttt{WARNING} and is available as a per-tick signal for a configurable action policy (log-only, online recalibration, cascade fallback). \emph{In the protocol reported in this paper, the action policy was log-only}: mismatches are recorded but the operational $C_1$/$C_2$/$C_3$ trajectory at the mismatched tick is the unaltered weighted-sum solution. The compliance check should therefore be read as a \emph{diagnostic for active-set drift} on the runs reported here, rather than as a safety net in the catch-and-correct sense; the cascade-fallback action policy is implementable from the same checker output and is left as future work (Section~\ref{sec:conclusion:future}). Empirical trigger rate, false-positive rate, and false-negative rate are reported in Section~\ref{sec:results}~(\S\ref{sec:results:theorem41}, Table~\ref{tab:compliance}).
+
+\subsection{Serialisation-Tolerance Contract}
+\label{sec:deployment:serialisation}
+
+nuPlan's \texttt{SimulationLog.save\_to\_file()} pickles the entire planner at the end of each scenario for replay and inspection. CasADi's symbolic decision variables and \texttt{Opti} solver object are SwigPyObjects that cannot pickle. We add a serialisation-tolerance contract to the planner: \texttt{\_\_getstate\_\_} returns a state dictionary with every CasADi attribute (and every new per-tick CSV file handle, \S\ref{sec:deployment:instrumentation}) dropped, and \texttt{\_\_setstate\_\_} restores the rest and rebuilds the CasADi state from scratch. A planner loaded from a saved log is fully usable for offline \texttt{solve()} calls; the trade-off is that warm-start state is lost on reload, which is acceptable for replay analysis.
+
+\subsection{Per-Tick CSV Instrumentation}
+\label{sec:deployment:instrumentation}
+
+For every scenario of the dual-condition protocol the batch driver (\texttt{workspace/examples/12\_batch\_two\_level\_mpc\_planner.py}) and the visualiser (\texttt{workspace/examples/visualizer.py}) emit a per-tick per-rule CSV \texttt{<scenario>\_log.csv} with one row per (tick, rule) pair containing the applicability flag, the violation flag, and the per-rule violation rate. This is the canonical artefact from which the per-level integrated violation $V_\ell^{(c,s)}$ (Definition~\ref{def:per-level-violation}), the per-tick compliance vector $b_{\epsilon,\ell,t}^{(c,s)}$ (Definition~\ref{def:compliance-vector}), and the per-tick compliance match rate $M_\ell^{(s)}$ (Definition~\ref{def:compliance-match}) are derived by the analysis pipeline of Section~\ref{sec:results}. Per-scenario Python-process wall time is logged at the batch-driver level as part of \texttt{batch\_summary\_l1.csv} for both conditions, feeding the wall-time ratio $\rho^{(s)}$ of Definition~\ref{def:walltime-ratio}.
+
+\subsection{The Observer Subsystem}
+\label{sec:deployment:observer}
+
+The observer subsystem evaluates the full 25-rule rulebook of Table~\ref{tab:rulebook} per tick, independently of the planner. Each observer rule is a venue-agnostic predicate over a \texttt{SceneSnapshot} data model that the rulebook engine adapts from nuPlan's \texttt{SimulationLog}. The observer emits a \texttt{RuleEvaluation} record per (tick, rule) pair containing the applicability flag, the violation flag, and the per-rule violation rate; the records are aggregated into per-scenario \texttt{EpisodeSummary} structures consumed by the analysis pipeline of Section~\ref{sec:protocol}.
+
+The observer plays two roles in the deployment. First, it is the truth-of-record for ``rule X was violated at tick $t$'', allowing the empirical objects of Section~\ref{sec:protocol:objects} to be computed without depending on the planner-side encoders. Second, it is the structural reference against which the planner's behaviour is judged --- the per-scenario top-violating rule analysis of Section~\ref{sec:results:compromise} draws directly from the observer's per-tick records. The implementation is at \texttt{workspace/lexicone/observer/}; the 25 rule modules sit under \texttt{observer/rules/} with one file per rule.

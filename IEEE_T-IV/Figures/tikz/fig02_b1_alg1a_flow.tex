@@ -1,0 +1,37 @@
+% Fig.2 (B1) — Algorithm 1A flow (L_1 exact-equivalence calibration).
+% Vertical column, 6 nodes, all sized to 7.0 cm wide for column alignment.
+% Single-column (IEEE \columnwidth).
+
+\input{./Figures/tikz/styles}
+\begin{tikzpicture}[node distance=3.5mm]
+  \node[colblockio, semioffline] (input) {%
+    \textbf{Priority-ordered convex program}\\[-1pt]
+    \scriptsize feasible weight box $\mathcal{W} \subset \mathbb{R}_{++}^{L}$
+  };
+  \node[colblock, semianalysis, below=of input] (lex) {%
+    \textbf{1. Lex reference solve}\\[-1pt]
+    \scriptsize outputs $(z_{\mathrm{lex}}^{\star},\ p^{\star})$
+  };
+  \node[colblock, semianalysis, below=of lex] (kkt) {%
+    \textbf{2. KKT lifting}\\[-1pt]
+    \scriptsize form the lex KKT system and lift to $(w,\beta)$-space
+  };
+  \node[colblock, semianalysis, below=of kkt] (fm) {%
+    \textbf{3. Equivalence-region projection}\\[-1pt]
+    \scriptsize Fourier--Motzkin yields $\Omega(p^{\star})$ in weight space
+  };
+  \node[colblock, seminovel, below=of fm] (lp) {%
+    \textbf{4. Weight calibration}\\[-1pt]
+    \scriptsize Chebyshev-centre LP on $\Omega(p^{\star}) \cap \mathcal{W}$
+  };
+  \node[colblockio, semiruntime, below=of lp] (out) {%
+    \textbf{Offline artefacts}\\[-1pt]
+    \scriptsize calibrated weight $w^{\dagger}$ and reference compliance $b_{\epsilon}^{\star}$
+  };
+
+  \draw[flow] (input.south) -- (lex.north);
+  \draw[flow] (lex.south)   -- (kkt.north);
+  \draw[flow] (kkt.south)   -- (fm.north);
+  \draw[flow] (fm.south)    -- (lp.north);
+  \draw[flow] (lp.south)    -- (out.north);
+\end{tikzpicture}

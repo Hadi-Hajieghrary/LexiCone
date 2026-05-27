@@ -1,0 +1,28 @@
+\begin{table}[t]
+    \centering
+    \caption{Per-scenario status under the operational LCP planner $C_1$ on the 16-scenario \texttt{nuPlan-mini} benchmark. The top-rule column is filtered to the 13 MPC-controlled rules of \S\ref{sec:rulebook:partition}; observer-only and stub rules are excluded since they are not under planner control.}
+    \label{tab:per_scenario_status}
+    \footnotesize
+\begin{tabular}{lrrl}
+\toprule
+Scenario & Ticks & $\#$ viol.\ MPC rules & Top MPC rule (integrated) \\
+\midrule
+01\_following\_slow\_lead & 150 & 6 & \texttt{3r3} (68.44) \\
+02\_near\_long\_vehicle & 150 & 8 & \texttt{7r2} (131.28) \\
+03\_near\_multiple\_vehicles & 150 & 8 & \texttt{7r2} (316.43) \\
+04\_changing\_lane & 149 & 6 & \texttt{7r2} (40.54) \\
+05\_changing\_lane\_left & 149 & 6 & \texttt{7r2} (40.54) \\
+06\_changing\_lane\_right & 150 & 3 & \texttt{3r5} (0.82) \\
+07\_starting\_left\_turn & 150 & 10 & \texttt{7r1} (48.00) \\
+08\_starting\_right\_turn & 150 & 3 & \texttt{0r3} (0.71) \\
+09\_high\_speed\_turn & 149 & 5 & \texttt{7r2} (90.78) \\
+10\_low\_speed\_turn & 149 & 6 & \texttt{7r2} (369.64) \\
+11\_protected\_cross & 149 & 7 & \texttt{7r2} (174.15) \\
+12\_unprotected\_cross & 149 & 6 & \texttt{7r2} (365.98) \\
+13\_high\_magnitude\_speed & 149 & 2 & \texttt{3r3} (6.60) \\
+14\_medium\_magnitude\_speed & 150 & 3 & \texttt{3r0} (48.81) \\
+15\_near\_high\_speed\_vehicle & 149 & 6 & \texttt{7r2} (104.93) \\
+16\_traversing\_intersection & 149 & 6 & \texttt{7r2} (186.42) \\
+\bottomrule
+\end{tabular}
+\end{table}

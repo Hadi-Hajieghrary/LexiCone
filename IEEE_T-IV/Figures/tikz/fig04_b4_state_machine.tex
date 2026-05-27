@@ -1,0 +1,63 @@
+% Fig.4 (B4) — Offline/online operational workflow.
+% Two grouped phases with an explicit runtime decision: accept on compliance
+% match, otherwise log and fall back to the lex cascade.
+% Single-column (IEEE \columnwidth ~ 8.4 cm).
+
+\input{./Figures/tikz/styles}
+\begin{tikzpicture}[node distance=3.8mm]
+  \node[phasehdr] (offlinehdr) {Offline calibration};
+  \node[colblockio, semioffline, below=2mm of offlinehdr] (scenario) {%
+    \textbf{Scenario-class exemplar}\\[-1pt]
+    \scriptsize select a representative operating case
+  };
+  \node[colblock, semianalysis, below=of scenario] (cascade) {%
+    \textbf{Lex reference solve}\\[-1pt]
+    \scriptsize obtain $(z_{\mathrm{lex}}^{\star},\ p^{\star})$
+  };
+  \node[colblock, seminovel, below=of cascade] (algo) {%
+    \textbf{Algorithm 1A or 1B}\\[-1pt]
+    \scriptsize calibrate $(w^{\dagger},\ b_{\epsilon}^{\star})$
+  };
+  \node[colblockio, semiruntime, below=of algo] (cache) {%
+    \textbf{Calibration cache}\\[-1pt]
+    \scriptsize key: scenario class; value: $(w^{\dagger},\ b_{\epsilon}^{\star})$
+  };
+
+  \node[phasehdr, below=8mm of cache] (runtimehdr) {Runtime loop (10 Hz)};
+  \node[colblockio, semioffline, below=2mm of runtimehdr] (lookup) {%
+    \textbf{Tick input + cache lookup}\\[-1pt]
+    \scriptsize retrieve the calibrated pair for the active scenario class
+  };
+  \node[colblock, semianalysis, below=of lookup] (wssolve) {%
+    \textbf{Weighted-sum solve}\\[-1pt]
+    \scriptsize solve once at $w^{\dagger}$ to obtain $z_{\mathrm{ws}}^{\star}$
+  };
+  \node[coldecision, semidecision, below=7mm of wssolve] (check) {%
+    Compliance preserved?\\[-1pt]
+    $b_{\epsilon}(z_{\mathrm{ws}}^{\star}) = b_{\epsilon}^{\star}$
+  };
+  \node[hblockio, semiruntime, minimum width=3.0cm, text width=2.8cm,
+        anchor=north] (accept) at ([yshift=-13mm, xshift=-18mm] check.south) {%
+    \textbf{Accept}\\[-1pt]
+    \scriptsize deploy trajectory
+  };
+  \node[hblock, semiwarn, minimum width=3.0cm, text width=2.8cm,
+        anchor=north] (fallback) at ([yshift=-13mm, xshift=18mm] check.south) {%
+    \textbf{Mismatch}\\[-1pt]
+    \scriptsize log and rerun cascade
+  };
+
+  \draw[flow] (scenario.south) -- (cascade.north);
+  \draw[flow] (cascade.south)  -- (algo.north);
+  \draw[flow] (algo.south)     -- (cache.north);
+  \draw[flow] (cache.south)    -- (lookup.north);
+  \draw[flow] (lookup.south)   -- (wssolve.north);
+  \draw[flow] (wssolve.south)  -- (check.north);
+  \draw[flow] ([xshift=-2mm] check.south) |- node[arrowlbl, left=1pt, pos=0.25] {yes} (accept.north);
+  \draw[feedback] ([xshift=2mm] check.south) |- node[arrowlbl, right=1pt, pos=0.25] {no} (fallback.north);
+
+  \begin{scope}[on background layer]
+    \node[groupbg, fit=(offlinehdr)(scenario)(cache)] {};
+    \node[groupbg, fit=(runtimehdr)(lookup)(wssolve)(check)(accept)(fallback)] {};
+  \end{scope}
+\end{tikzpicture}

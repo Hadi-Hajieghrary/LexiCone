@@ -1,0 +1,56 @@
+% Section VIII: Discussion. Scope-B rewrite: four threads — what the framework
+% buys, limitations, comparison with prior approaches, threats to validity.
+
+We close the empirical analysis with four discussion threads: what the framework buys, what it does not (limitations), how it compares with the principal prior approaches, and what could threaten the validity of our claims.
+
+\subsection{What the Framework Buys}
+\label{sec:discussion:buys}
+
+The deployment described in Section~\ref{sec:deployment} and validated by the protocol of Section~\ref{sec:protocol} produces four operational gains.
+
+\emph{A structural priority guarantee.} The calibrated weighted-sum planner ($C_1$) is provably equivalent to the lex cascade ($C_4$) at the active set on which $w^{\dagger}$ was calibrated (Theorem~\ref{thm:equivalence}; the v10\_2 Support-Normal Equivalence). The empirical compliance match rate of Section~\ref{sec:results}~(\S\ref{sec:results:theorem41}) operationalises this guarantee at the levels held effectively hard in deployment (median match rate $\geq 0.981$ at $L_8$, $L_9$, $L_{10}$ collision-avoidance levels and at $L_2$ route adherence): the operational weighted-sum planner reproduces the formal cascade's compliance pattern in closed loop at the priority-critical levels, not just in theory.
+
+\emph{An order-of-magnitude reduction in online solve cost.} The cascade requires $L + 1$ sequential nonlinear-program solves per tick; the calibrated weighted-sum mode requires one. The empirical ratio at our parameters (Section~\ref{sec:results}~\S\ref{sec:results:cost}) is larger than the structural lower bound because each cascade stage runs on a strictly tighter feasibility set than its predecessor, which raises the per-stage interior-point iteration count and weakens warm-starting. The architectural decomposition of~\cite{lcp2025} purchases this reduction with an offline calibration step (cached per Section~\ref{sec:deployment:cache}); the trade is asymmetric in favour of online throughput.
+
+\emph{A runtime diagnostic for active-set drift.} The runtime compliance checker (\S\ref{sec:deployment:compliance}) detects the operational failure mode of weighted-sum scalarisation: when the active set drifts away from the calibration's, the equivalence guarantee weakens silently. The checker raises a per-tick flag for every per-level mismatch. In the protocol reported here, the action policy is log-only; the same per-tick signal is the input to the cascade-fallback and Algorithm~1A/1B recalibration policies of \cite{lcp2025}~\S9.6 (implemented in \texttt{lcp.deploy\_tick}) that would close the loop in production.
+
+\emph{A practitioner-facing lessons roster.} Table~\ref{tab:lessons_learned} consolidates the eleven implementation primitives and the observer subsystem as a roster mapping each lesson to its problem, symptom, workaround, and rejected alternative. The roster is the artefact a practitioner needs to replicate the deployment on a different rule set, vehicle, or simulator; it is the contribution of the present manuscript that is independent of any specific empirical outcome.
+
+\subsection{Limitations}
+\label{sec:discussion:limitations}
+
+The framework and its deployment carry six explicit limitations that we make load-bearing.
+
+\emph{Approximate equivalence around the lex active set.} The exact-equivalence theorem (Theorem~\ref{thm:equivalence}) holds at the active set at which $w^{\dagger}$ was calibrated. The SLP outer loop (\S\ref{sec:deployment:slp}) re-linearises the dynamics about the warm-start at every tick; the active set on the linearised problem may differ from the active set at the warm-start. The compliance match-rate evidence of Section~\ref{sec:results}~(\S\ref{sec:results:theorem41}) quantifies the drift empirically: the approximation is faithful at the levels held effectively hard (median match rate $1.000$ at $L_{10}$ and $L_2$, $0.987$ at $L_9$, $0.981$ at $L_8$) and degrades at the levels engaged in the priority-respecting compromise (median $0.664$ at $L_7$, $0.696$ at $L_3$, $0.839$ at $L_1$, $0.772$ at $L_0$). The match-rate split is not monotonic in priority depth --- it is structured by whether the level is held hard or actively trading off the per-tick compromise.
+
+\emph{Cross-step coupling not natively expressible.} The convex per-step template (\S\ref{sec:deployment:ocp}) expresses only single-step inequalities. Cross-step couplings (lateral jerk, longitudinal jerk, multi-step deceleration profiles) enter the OCP only through single-step proxies (\S\ref{sec:deployment:cross-step}); the proxies are conservative on smooth-trajectory regimes and conservative-in-expectation on burst regimes.
+
+\emph{State-machine rules out of scope.} The 9 observer-only rules of Table~\ref{tab:rulebook} encode multi-tick state-machine semantics (mandatory-stop approach, yield-priority arbitration, intersection-blocking detection) that are not natively expressible in the convex per-step template. Extending the framework to encompass these rules would require discrete mode variables (incompatible with the convex template) or a multi-step temporal extension (a research direction not pursued here).
+
+\emph{Polygonal disjunctions reduce to closest-face half-planes.} The polygon-to-half-plane reduction (\S\ref{sec:deployment:polygon}) is exact when the warm-start lies inside the closest-face Voronoi cell of the polygon. On the Voronoi boundary the heuristic resolves ties by picking any of the equidistant faces; both choices yield a consistent half-plane normal direction so the emitted constraint is conservative when the warm-start lies outside the polygon and permissive when inside. In either case the SLP outer loop re-linearises on the next iteration about the new warm-start, away from the boundary.
+
+\emph{Single-vehicle, single-simulator evidence.} All empirical claims in this manuscript are based on a single vehicle model (Chrysler Pacifica), a single simulator (\texttt{nuPlan-mini}), and a single seed. Cross-vehicle generalisation, cross-simulator generalisation, and cross-region (driving-culture) generalisation are open questions, as is multi-seed stochastic robustness; the qualitative pattern of priority-respecting compromise was the structural property of interest in this paper, so single-seed evidence is sufficient to establish it.
+
+\emph{Necessity-forced relaxations are scenario-dependent.} The empirical \S10.2 scan (Table~\ref{tab:necessity}) identifies the scenarios on which the planner operates in the necessity-required relaxation regime: \texttt{11\_protected\_cross} forces \texttt{7r2} (opposing-lane) relaxation because the geometry of the turn intersects the opposing-lane half-plane. Deployments in regions or scenarios with different road geometries will experience different necessity-forced relaxation patterns; the scan is the operator's runtime tool for identifying which level violations are geometric inevitabilities rather than planner deficiencies.
+
+\subsection{Comparison with Prior Approaches}
+\label{sec:discussion:comparison}
+
+We position the deployment against three prior approaches.
+
+\emph{Hierarchical Quadratic Programming (HQP).} HQP~\cite{escande2014hqp,kanoun2011prioritized} treats the cascade as the operational construct, solving the $L+1$-stage problem per tick. HQP is the gold standard if the per-tick budget admits $L+1$ solves; in our setting the per-tick budget does not, and the calibrated weighted-sum mode is the operational alternative. The cascade condition $C_4$ of our protocol is the natural HQP reference: it is precisely the lex-cascade solution on the linearised inner problem, which is what HQP would compute per tick at the same priority depth. The computational asymmetry against the calibrated weighted-sum substitution is sharp: HQP performs $L+1$ convex sub-solves per tick (online cost $\Theta(L+1)$), whereas the calibrated weighted-sum mode performs the lex cascade once per scenario class offline (cost amortised across $\sim 10^2$--$10^3$ ticks per cell) plus a single weighted-sum solve per tick (online cost $\Theta(1)$).
+
+\emph{Flat-weight MPC.} Flat-weight MPC tunes a single set of soft-collision-slack weights and lacks structural priority semantics. Even with carefully tuned weights, the flat-weight planner has no mechanism to guarantee that, e.g., a comfort violation will not be accepted in exchange for a safety violation; the violation vector is a single scalar trade-off. The priority-respecting compromise pattern of Section~\ref{sec:results}~(\S\ref{sec:results:compromise}) is exactly the structural property that flat-weight tuning cannot match.
+
+\emph{Goal programming with Sherali's equivalent weights.} Sherali~\cite{sherali1982equivalent} established the existence and computability of equivalent weights for lexicographic linear programs. The foundation paper~\cite{lcp2025} extends this to the convex setting via the support-normal characterisation. The present manuscript extends the prior tradition operationally: we add the runtime mismatch detector (\S\ref{sec:deployment:compliance}) absent from Sherali's framework, provide the offline calibration cache that makes Algorithm~1A tractable at deployment scale, and embed the calibration in a closed-loop autonomous-vehicle simulator with the eleven implementation primitives of Table~\ref{tab:lessons_learned}.
+
+\subsection{Threats to Validity}
+\label{sec:discussion:validity}
+
+Three threats to the validity of the empirical claims merit explicit acknowledgement.
+
+\emph{Scenario distribution.} The 16 \texttt{nuPlan-mini} scenarios are a curated subset of the full \texttt{nuPlan} benchmark. The distribution over scenario classes is approximately balanced (turn, lane-change, follow, intersection traversal) but is not random; conclusions about the framework's behaviour on scenarios outside this distribution are extrapolations.
+
+\emph{Single-seed evidence.} We use a single random seed for the dual-condition protocol. The qualitative structural property of priority-respecting compromise we report is invariant under seed (the relative priorities of rule violations are determined by the planner's encoder and weight calibration, not by the simulator's random initial condition). Multi-seed stochastic robustness is a separate empirical question not addressed by this paper.
+
+\emph{Calibration-cache freshness.} The cache is populated once per scenario class at the start of the protocol. If the scenario instances within a class drift in their active-set structure during the simulation (a foreseeable failure mode in long-horizon deployment), the calibration ages and the equivalence guarantee weakens. The runtime compliance checker (\S\ref{sec:deployment:compliance}) detects this; the recalibration policy is implemented in \texttt{lcp.deploy\_tick} but its action policy is left to the operator.

@@ -40,8 +40,6 @@
 \newtheorem{invariant}{Invariant}
 \newtheorem*{remark}{Remark}
 
-
-
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc, decorations.pathreplacing, shapes.multipart}
 
 % Graceful handling of missing figure files: show placeholder box with filename
@@ -49,41 +47,108 @@
 \renewcommand{\includegraphics}[2][]{%
   \IfFileExists{#2}{%
     \origincludegraphics[#1]{#2}%
+  }{\IfFileExists{#2.pdf}{%
+    \origincludegraphics[#1]{#2}%
+  }{\IfFileExists{#2.png}{%
+    \origincludegraphics[#1]{#2}%
+  }{\IfFileExists{#2.jpg}{%
+    \origincludegraphics[#1]{#2}%
+  }{\IfFileExists{#2.jpeg}{%
+    \origincludegraphics[#1]{#2}%
   }{%
-    \fbox{\parbox{0.8\linewidth}{\centering\small\texttt{[Missing figure: #2]}}}%
-  }%
+    \fbox{\parbox{0.8\linewidth}{\centering\small\ttfamily [Missing figure: \detokenize{#2}]}}%
+  }}}}}%
 }
 
-\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore rule-book}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
 
 \begin{document}
 
-\title{title...}
+\title{Closed-Loop Deployment of Lexicographic Constraint Programming for Trajectory Model Predictive Control on the nuPlan Simulator}
 
-\author{Hadi Hajieghrary$^{1}$,...% <-this % stops a space
-\thanks{$^{1}$Hadi Hajieghrary {\tt\small Hadi.Hajieghrary@Torc.ai}, ....}%
+\author{Hadi~Hajieghrary%
+\thanks{H.~Hajieghrary is with Torc Robotics, Blacksburg, VA, USA.
+        E-mail: \texttt{Hadi.Hajieghrary@Torc.ai}.}%
+\thanks{The author thanks the nuPlan development team for the simulator infrastructure used in this study.}%
 }
 
 \maketitle
 
 \begin{abstract}
-abstract..
+We are interested in the closed-loop deployment of priority-ordered constrained Model Predictive Control (MPC) for autonomous-vehicle trajectory planning. Building on the geometric equivalence framework of Lexicographic Constraint Programming (LCP)~\cite{lcp2025}, we present (i) a dynamics-agnostic reference implementation of the framework's Algorithms~0, 1A, and 1B together with its pre-flight diagnostics (\S8.5), online cascade-fallback policy (\S9.6), and Relaxation Decision Framework (\S10), verified to $10^{-6}$ precision against the published numerical answers of the framework's worked examples by a 47-test regression suite; (ii) a closed-loop deployment, on the nuPlan simulator, that realises the calibrated weighted-sum substitution of the formal lex cascade through a two-level MPC pipeline with eleven implementation primitives the convex framework does not directly address; and (iii) a dual-condition demonstration protocol on the 16-scenario \texttt{nuPlan-mini} benchmark in which the operational weighted-sum planner ($C_1$) and the formal lex cascade ($C_4$) are run on each scenario. The empirical evidence confirms priority-respecting compromise on every scenario (rule violations concentrate at the low-priority comfort and headway levels while high-priority collision and traffic-light levels remain effectively held), reproduces the formal cascade's per-tick compliance pattern at the high-priority levels (the operational realisation of Theorem~4.1 of~\cite{lcp2025}), and quantifies the architectural wall-time benefit of substituting the calibrated weighted-sum solve for the $L{+}1$-stage cascade. The framework's standing assumptions (FM~I LICQ + FM~II convexity, \cite{lcp2025} \S8.5) hold across the benchmark, and the empirical \S10.2 necessity scan identifies the scenarios on which the deployment legitimately operates in the necessity-required relaxation regime --- ascribing the highest-level violations to road geometry rather than to planner suboptimality. The deployment and the protocol are released as open artefacts.
 \end{abstract}
 
 \begin{IEEEkeywords}
-keywords...
+Lexicographic optimization, model predictive control, weighted-sum scalarization, rulebook, autonomous vehicles, convex optimization, priority-ordered constraints, closed-loop simulation, nuPlan, compliance vector, support-normal equivalence.
 \end{IEEEkeywords}
 
+
 \section{Introduction}
-\label{Sec:Introduction}
+\label{sec:introduction}
 \subfile{./Sections/Section_I_Introduction}
 
+\section{Foundations: The LCP Framework}
+\label{sec:foundations}
+\subfile{./Sections/Section_II_Foundations}
+
+\section{The 25-Rule Rulebook and Its Partition}
+\label{sec:rulebook}
+\subfile{./Sections/Section_III_Rulebook}
+
+\section{Closed-Loop Deployment: System Architecture}
+\label{sec:deployment}
+\subfile{./Sections/Section_IV_Deployment}
+
+\section{Demonstration Protocol}
+\label{sec:protocol}
+\subfile{./Sections/Section_V_Protocol}
+
+\section{Single-Condition System Behaviour}
+\label{sec:singlecondition}
+\subfile{./Sections/Section_VI_SingleConditionBehavior}
+
+\section{Empirical Results}
+\label{sec:results}
+\subfile{./Sections/Section_VII_Results}
+
+\section{Discussion}
+\label{sec:discussion}
+\subfile{./Sections/Section_VIII_Discussion}
+
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+\subfile{./Sections/Section_IX_Conclusion}
 
 
 \bibliographystyle{./IEEEtran}
 \bibliography{./References/references.bib}
+
+
+\appendices
+
+\section{Hyperparameter Reference}
+\label{app:hyperparameters}
+\subfile{./Sections/Appendix_A_Hyperparameters}
+
+\section{Algorithm Pseudocode (0, 1A, 1B)}
+\label{app:algorithms}
+\subfile{./Sections/Appendix_B_AlgorithmPseudocode}
+
+\section{Encoder Specification}
+\label{app:encoders}
+\subfile{./Sections/Appendix_C_EncoderSpec}
+
+\section{Framework Verification}
+\label{app:verification}
+\subfile{./Sections/Appendix_D_FrameworkVerification}
+
+\section{Reproducibility Manifest}
+\label{app:reproducibility}
+\subfile{./Sections/Appendix_E_Reproducibility}
+
+\balance
 
 \end{document}

@@ -1,0 +1,89 @@
+% Fig.6 (D1) — Two-level MPC pipeline.
+% Recast as a staged architecture diagram with three semantic lanes:
+% simulator I/O, outer-level guidance, and inner-level optimisation.
+
+\input{./Figures/tikz/styles}
+\begin{tikzpicture}[node distance=5mm]
+  \node[phasehdr] (titlelane) {Runtime deployment architecture};
+
+  % ===== Top: simulator input lane =====
+  \node[hblockio, semioffline, below=2mm of titlelane,
+        minimum width=12.4cm, text width=12.0cm] (sim) {%
+    \textbf{nuPlan simulator}\\[-1pt]
+    \scriptsize emits PlannerInput and receives a trajectory at 10~Hz
+  };
+
+  % ===== OUTER LEVEL =====
+  \node[phasehdr, below=7mm of sim] (outerhdr) {Outer level};
+  \node[hblock, semianalysis, below=2mm of outerhdr.south west, anchor=north west,
+        minimum width=4.1cm, text width=3.9cm] (route) {%
+    \textbf{Global routing}\\[-1pt]
+    \scriptsize lane-graph search refreshed every $8$~s
+  };
+  \node[hblock, semioffline, right=4mm of route,
+        minimum width=4.1cm, text width=3.9cm] (ref) {%
+    \textbf{Reference corridor}\\[-1pt]
+    \scriptsize 200~m arc-length window for the inner solve
+  };
+
+  % ===== INNER LEVEL =====
+  \node[phasehdr, below=8mm of route] (innerhdr) {Inner level (10 Hz)};
+  \node[hblock, semianalysis, below=2mm of innerhdr.south west, anchor=north west,
+        minimum width=2.9cm, text width=2.7cm] (lift) {%
+    \textbf{Scene lifting}\\[-1pt]
+    \scriptsize ego-local lanes, stop lines, walkways, traffic lights
+  };
+  \node[hblock, semianalysis, right=3mm of lift,
+        minimum width=2.9cm, text width=2.7cm] (encode) {%
+    \textbf{Rule encoding}\\[-1pt]
+    \scriptsize 12 encoder modules covering 13 active rule IDs
+  };
+  \node[hblock, seminovel, right=3mm of encode,
+        minimum width=3.2cm, text width=3.0cm] (ocp) {%
+    \textbf{LCP-MPC solve}\\[-1pt]
+    \scriptsize convex OCP with per-level slacks and cached weights
+  };
+  \node[hblock, semiruntime, below=5mm of ocp,
+        minimum width=3.2cm, text width=3.0cm] (slp) {%
+    \textbf{SLP outer loop}\\[-1pt]
+    \scriptsize linearise dynamics, solve, rewarm-start
+  };
+
+  % ===== Compliance and output =====
+  \node[hblockio, semidecision, right=6mm of ocp,
+        minimum width=3.1cm, text width=2.9cm, minimum height=1.8cm] (compl) {%
+    \textbf{Compliance check}\\[-1pt]
+    \scriptsize same rule-activation pattern as the offline reference?
+  };
+
+  \node[hblockio, semiruntime, right=6mm of compl,
+        minimum width=3.1cm, text width=2.9cm, minimum height=1.8cm] (accept) {%
+    \textbf{Accepted trajectory}\\[-1pt]
+    \scriptsize controller tracks the plan and advances the simulator
+  };
+  \node[hblock, semiwarn, below=5mm of compl,
+        minimum width=3.1cm, text width=2.9cm, minimum height=1.3cm] (fallback) {%
+    \textbf{Mismatch path}\\[-1pt]
+    \scriptsize log the event and rerun the cascade if needed
+  };
+
+  % ===== Connections =====
+  \draw[flow] (sim.south)    -- node[arrowlbl, right=1pt] {PlannerInput} (outerhdr.north);
+  \draw[flow] (outerhdr.south) -- (route.north);
+  \draw[flow] (route.east)   -- (ref.west);
+  \draw[flow] (ref.south)    |- (lift.north);
+  \draw[flow] (lift.east)    -- (encode.west);
+  \draw[flow] (encode.east)  -- (ocp.west);
+  \draw[flow] (ocp.east)     -- (compl.west);
+  \draw[flow] (compl.east)   -- node[arrowlbl, above=1pt] {match} (accept.west);
+  \draw[feedback] (compl.south) -- node[arrowlbl, right=1pt] {mismatch} (fallback.north);
+  \draw[feedback] (slp.north) -- (ocp.south);
+
+  % Return arrow: accepted trajectory back to simulator
+  \draw[flow] (accept.north) |- ([xshift=10mm] sim.east) -- (sim.east);
+
+  \begin{scope}[on background layer]
+    \node[groupbg, fit=(outerhdr)(route)(ref)] {};
+    \node[groupbg, fit=(innerhdr)(lift)(encode)(ocp)(slp)] {};
+  \end{scope}
+\end{tikzpicture}

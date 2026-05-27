@@ -1,0 +1,84 @@
+% Shared TikZ styles for the block-diagram figures (Fig.2-Fig.6). Loaded by
+% each individual fig*.tex via \input. Each style sets BOTH minimum width AND
+% text width explicitly so that every box in a column has the same width
+% regardless of content length — this prevents the row-misalignment that
+% happens when math content is wider than the nominal minimum width.
+
+\tikzset{
+  % ===== SINGLE-COLUMN FLOW (Fig.2, Fig.3, Fig.4) =====
+  % Width 7.0 cm fits IEEE single-column (\columnwidth ~ 8.4 cm).
+  colblock/.style = {
+    rectangle, draw=black!70, line width=0.35pt, rounded corners=2pt,
+    text width=6.45cm, align=center, font=\sffamily\footnotesize,
+    minimum width=6.9cm, minimum height=0.95cm,
+    inner sep=5pt, outer sep=0pt, fill=white
+  },
+  colblockio/.style = {
+    colblock,
+    fill=black!3
+  },
+  coldecision/.style = {
+    diamond, draw=black!70, line width=0.35pt, aspect=2.5,
+    text width=4.1cm, align=center, font=\sffamily\footnotesize,
+    inner sep=1.5pt, outer sep=0pt, fill=white
+  },
+  % ===== DOUBLE-COLUMN GRID (Fig.5) =====
+  % Used in figure* environments, ~14 cm wide.
+  gridcell/.style = {
+    rectangle, draw=black!70, line width=0.35pt, rounded corners=1.5pt,
+    text width=2.8cm, align=center, font=\sffamily\scriptsize,
+    minimum width=3.0cm, minimum height=0.55cm,
+    inner sep=2.5pt, outer sep=0pt, fill=white
+  },
+  gridcellstub/.style = {
+    gridcell,
+    draw=black!40, text=black!55
+  },
+  % ===== DOUBLE-COLUMN HORIZONTAL FLOW (Fig.6) =====
+  hblock/.style = {
+    rectangle, draw=black!70, line width=0.35pt, rounded corners=2pt,
+    text width=2.5cm, align=center, font=\sffamily\scriptsize,
+    minimum width=2.7cm, minimum height=1.0cm,
+    inner sep=4pt, outer sep=0pt, fill=white
+  },
+  hblockio/.style = {
+    hblock,
+    fill=black!3
+  },
+  % ===== COMMON =====
+  phasehdr/.style = {
+    font=\sffamily\small\bfseries, text=black!78,
+    align=center
+  },
+  boxhdr/.style = {
+    font=\sffamily\bfseries\footnotesize,
+    align=center,
+    text=black
+  },
+  boxmeta/.style = {
+    font=\sffamily\scriptsize,
+    align=center,
+    text=black!78
+  },
+  semioffline/.style = {fill=blue!5},
+  semianalysis/.style = {fill=orange!8},
+  seminovel/.style = {fill=green!10, draw=black!80, line width=0.5pt},
+  semiruntime/.style = {fill=gray!7},
+  semidecision/.style = {fill=orange!12},
+  semiwarn/.style = {fill=red!8},
+  flow/.style = {
+    -Stealth, semithick, draw=black
+  },
+  feedback/.style = {
+    -Stealth, semithick, draw=black!65, dashed
+  },
+  arrowlbl/.style = {
+    font=\sffamily\scriptsize,
+    fill=white, inner sep=1.5pt
+  },
+  % Translucent group background
+  groupbg/.style = {
+    rectangle, draw=black!30, line width=0.35pt,
+    rounded corners=3pt, inner sep=6pt, fill=white
+  }
+}

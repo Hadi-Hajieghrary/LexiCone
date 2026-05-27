@@ -1,0 +1,83 @@
+% Section V: Demonstration Protocol. Scope-B rewrite: two conditions (C1, C4),
+% single seed, qualitative evidence of priority-respecting compromise +
+% empirical Theorem 4.1 confirmation via per-tick compliance match.
+
+We assess the LCP deployment via a dual-condition demonstration protocol on the 16-scenario \texttt{nuPlan-mini} benchmark. The protocol is qualitative rather than statistical: with the property of interest --- whether the operational weighted-sum planner produces priority-respecting compromise indistinguishable from the formal lex cascade --- being structural rather than population-level, the evidence is per-tick and per-scenario inspection rather than hypothesis testing. Section~\ref{sec:protocol:conditions} introduces the two conditions; Section~\ref{sec:protocol:objects} formalises the empirical objects (per-level integrated violation, per-tick compliance vector, per-scenario wall time) we judge the deployment against; Section~\ref{sec:protocol:hyperparameters} cross-references the hyperparameter table.
+
+\subsection{The Two Conditions}
+\label{sec:protocol:conditions}
+
+\begin{table}[t]
+    \centering
+    \caption{The two planner conditions of the demonstration protocol. Both run the same two-level MPC pipeline of Section~\ref{sec:deployment} with the same encoder set, the same warm-start, and the same SLP and Tikhonov settings; they differ only in the per-tick inner-OCP strategy. The wall-time column is per scenario, on the canonical nuPlan-mini benchmark.}
+    \label{tab:conditions}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l X l@{}}
+        \toprule
+        Code & Description & Wall (per scenario) \\
+        \midrule
+        $C_1$ \texttt{\_ws\_l1}        & Operational mode: a single calibrated weighted-sum solve per tick, $L_1$ penalty form (Algorithm~\ref{alg:alg1a} weights), $\mathtt{slp\_max\_iterations}=1$. & $\sim 2$~min \\
+        $C_4$ \texttt{\_cascade\_l1}   & Reference mode: full $L{+}1$-stage lex cascade per tick (\cite{lcp2025} \S2.3); $L_1$ penalty form; the formal lex optimum at the linearised inner problem. & $\sim 14$~min \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Table~\ref{tab:conditions} lists the two conditions. The operational LCP deployment ($C_1$) realises the calibrated weighted-sum mode of \cite{lcp2025} \S9 with $L_1$ violation functionals and a single SLP iteration per tick; this is the planner one would actually deploy. The cascade reference ($C_4$) runs the full $L{+}1$-stage cascade per tick; it is the formal lex optimum at the linearised inner problem and the reference against which $C_1$'s priority-respecting compromise pattern is checked tick-by-tick. The benchmark is the sixteen scenarios listed in Section~\ref{sec:singlecondition} (one instance per scenario type, selected from the \texttt{nuPlan-mini} readable mini DBs via Hydra's \texttt{scenario\_filter} with \texttt{seed}~$= 7$). Each condition runs once on each scenario, for a total of $2 \times 16 = 32$ closed-loop simulation runs.
+
+\subsection{Empirical Objects}
+\label{sec:protocol:objects}
+
+We judge the deployment against four empirical objects derived from the per-tick observer evaluations and the per-condition simulation logs.
+
+\begin{definition}[Per-level integrated violation]
+\label{def:per-level-violation}
+For a given simulation run $(c, s)$ at condition $c \in \{C_1, C_4\}$ and scenario $s$, the per-level integrated violation at priority level $\ell$ is
+\begin{equation}
+    V_{\ell}^{(c, s)}\ :=\ \sum_{i \in \mathcal{R}_{\ell}}\ \sum_{t} r_{i, t}^{(c, s)} \cdot \Delta t,
+    \label{eq:V-level}
+\end{equation}
+where $\mathcal{R}_{\ell}$ is the set of rule IDs at priority level $\ell$, $r_{i, t}^{(c, s)} \in [0, 1]$ is the per-tick observer violation rate of rule $i$ at tick $t$, and $\Delta t = 0.1$~s is the simulator tick. We adopt the rulebook's convention that \emph{higher} $\ell$ denotes \emph{higher} priority (Fig.~\ref{fig:rulebook_hierarchy}): $L_{10}$ is VRU-collision avoidance, $L_0$ is longitudinal comfort. A planner that respects the priority hierarchy has $V_{\ell}^{(c, s)}$ concentrate at the low-priority levels (small $\ell$) and remain near zero at the high-priority levels (large $\ell$).
+\end{definition}
+
+\begin{definition}[Per-tick binary compliance vector]
+\label{def:compliance-vector}
+The per-tick binary compliance vector at level $\ell$ for cell $(c, s)$ is
+\begin{equation}
+    b_{\epsilon, \ell, t}^{(c, s)}\ :=\ \mathbf{1}\bigl[v_{\ell, t}^{(c, s)} \le \epsilon_{\ell}\bigr],
+    \label{eq:compliance-bit}
+\end{equation}
+where $v_{\ell, t}^{(c, s)}\ :=\ \sum_{i \in \mathcal{R}_{\ell}} r_{i, t}^{(c, s)}$ is the level-$\ell$ instantaneous violation rate at tick $t$ and $\epsilon_{\ell}$ is the per-level compliance tolerance (Appendix~\ref{app:hyperparameters}). The compliance bit $b_{\epsilon, \ell, t}^{(c, s)} = 1$ indicates that level $\ell$ is satisfied at tick $t$ within tolerance $\epsilon_\ell$.
+\end{definition}
+
+\begin{definition}[Per-tick compliance match]
+\label{def:compliance-match}
+The per-tick compliance match between $C_1$ (operational weighted-sum) and $C_4$ (cascade reference) at level $\ell$ on scenario $s$ is
+\begin{equation}
+    M_{\ell}^{(s)}\ :=\ \frac{1}{T_s}\sum_{t=1}^{T_s} \mathbf{1}\bigl[b_{\epsilon, \ell, t}^{(C_1, s)} = b_{\epsilon, \ell, t}^{(C_4, s)}\bigr],
+    \label{eq:compliance-match}
+\end{equation}
+where $T_s$ is the tick count of scenario $s$. $M_{\ell}^{(s)} = 1$ certifies that the operational weighted-sum planner reproduces the cascade reference's compliance pattern at level $\ell$ on every tick of scenario $s$ --- the operational realisation of \cite{lcp2025}'s Theorem~4.1.
+\end{definition}
+
+\begin{definition}[Per-scenario wall-time ratio]
+\label{def:walltime-ratio}
+The per-scenario wall-time ratio is
+\begin{equation}
+    \rho^{(s)}\ :=\ \frac{T_{\mathrm{wall}}^{(C_4, s)}}{T_{\mathrm{wall}}^{(C_1, s)}},
+    \label{eq:walltime-ratio}
+\end{equation}
+where $T_{\mathrm{wall}}^{(c, s)}$ is the total Python-process wall-time of the simulation subprocess for cell $(c, s)$ (measured externally by the batch driver). The median $\rho^{(s)}$ across the 16 scenarios quantifies the architectural-throughput benefit of substituting the calibrated weighted-sum solve for the $L{+}1$-stage cascade.
+\end{definition}
+
+The per-level integrated violation~\eqref{eq:V-level} feeds the priority-respecting-compromise figures of Section~\ref{sec:results}~(Figs.~\ref{fig:top_violation},~\ref{fig:rule_scenario_heatmap},~\ref{fig:level_breakdown}); the per-tick compliance match~\eqref{eq:compliance-match} feeds the Theorem~4.1-in-deployment figure (Fig.~\ref{fig:compliance_match}); the wall-time ratio~\eqref{eq:walltime-ratio} feeds Fig.~\ref{fig:walltime}.
+
+In addition to the four per-scenario empirical objects, we report two framework-side scans tied directly to \cite{lcp2025} sections:
+
+\emph{Pre-flight diagnostics scan (\cite{lcp2025} \S8.5).} For each scenario, at the peak-violation tick of the $C_1$ run, we extract the active rule-encoder gradients and run the combined FM~I LICQ + FM~II convexity check via \texttt{lcp.run\_diagnostics}. The result --- Table~\ref{tab:diagnostics} of Section~\ref{sec:results} --- certifies that the framework's standing assumptions hold on the benchmark.
+
+\emph{Empirical \S10.2 necessity scan.} For each scenario, the per-level fraction of applicable ticks at which level $\ell$ had nonzero violation is computed from the $C_1$ run. The largest $\ell^\star$ such that level $\ell^\star$ and every higher-priority level had this fraction below an empirical hardness tolerance (1\%) is the empirical analogue of $i^\star_{\mathrm{nec}}$ from~\cite{lcp2025} Definition~10.1. Levels above $\ell^\star$ are the empirically forced-relaxed levels (Table~\ref{tab:necessity}).
+
+\subsection{Hyperparameter Reference}
+\label{sec:protocol:hyperparameters}
+
+Both conditions share every Hydra-overrideable hyperparameter except \texttt{runtime\_mode} (\texttt{ws} for $C_1$, \texttt{cascade} for $C_4$). The common-parameter design isolates the effect of the inner-OCP strategy itself rather than confounding it with a parameter sweep. The complete hyperparameter table appears in Appendix~\ref{app:hyperparameters} together with the hidden constants (Tikhonov regulariser, per-level slot budgets, inactive-slot offset, vehicle parameters) that are not exposed as Hydra keys but materially affect the empirical results.

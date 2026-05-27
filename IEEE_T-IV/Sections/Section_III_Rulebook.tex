@@ -1,0 +1,139 @@
+% Section III: The 25-Rule Rulebook and Its Partition. Bridge between the
+% theory recap (§II) and the deployment (§IV). Table I from
+% workspace/lexicone/planning/tests/test_rule_level_mapping.py (which is the
+% machine-checked source of truth for the 13/9/3 split). Fig.5 (D2) is the
+% level-mapping visualisation from artifacts/theory/.
+
+\subsection{The 25-Rule Rulebook}
+\label{sec:rulebook:roster}
+
+Table~\ref{tab:rulebook} lists the 25 rules of the rulebook adopted by the deployment, together with each rule's priority level (decreasing from $L_{10}$ for VRU safety to $L_0$ for longitudinal and lateral comfort) and its operational classification. The classification has three values:
+\begin{itemize}[leftmargin=*,noitemsep]
+    \item \emph{MPC-controlled} --- the rule has an active convex encoder in the planner's rule-encoder module and contributes to the per-tick optimal control problem (OCP) of Section~\ref{sec:deployment}.
+    \item \emph{Observer-only} --- the rule is a multi-tick state machine whose semantics fall outside the convex per-step template; the observer subsystem evaluates the rule continuously but no planner-side encoder shapes the trajectory.
+    \item \emph{Stub} --- the rule reserves a slot budget in the OCP for future enforcement but emits inactive constraints in the current deployment.
+\end{itemize}
+The three classes partition the rulebook: every rule belongs to exactly one. The partition is asserted at module import time by the test \texttt{test\_rule\_level\_mapping.py} and is the machine-checked source of truth for the counts $13 + 9 + 3 = 25$ used throughout this manuscript.
+
+\begin{table}[t]
+    \centering
+    \caption{The 25-rule rulebook adopted by the LCP-MPC deployment. Each row lists the rule identifier (level-prefixed), the rule's natural-language description, and its operational classification (MPC-controlled, Observer-only, Stub). The 13 MPC-controlled rules determine the index set over which lex dominance is evaluated in Section~\ref{sec:results}; the 9 observer-only rules form the invariant negative-control set; the 3 stubs occupy OCP slot capacity but emit inactive constraints.}
+    \label{tab:rulebook}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l l X c@{}}
+        \toprule
+        ID & Level & Description & Class \\
+        \midrule
+        \texttt{10r0} & $L_{10}$ & Avoid collision with VRUs & MPC \\
+        \texttt{10r3} & $L_{10}$ & Yield at unmarked crosswalks & Obs.\ \\
+        \texttt{10r4} & $L_{10}$ & Safe passing distance for cyclists & Obs.\ \\
+        \texttt{10r5} & $L_{10}$ & Do not encroach into bicycle lanes & Stub \\
+        \midrule
+        \texttt{9r0}  & $L_{9}$  & Avoid collision with non-VRU vehicles or obstacles & MPC \\
+        \texttt{9r1}  & $L_{9}$  & Avoid non-traversable surface & Obs.\ \\
+        \midrule
+        \texttt{8r0}  & $L_{8}$  & Comply with mandatory stops & Obs.\ \\
+        \texttt{8r1}  & $L_{8}$  & Yield right-of-way to pedestrians at crosswalks & Obs.\ \\
+        \midrule
+        \texttt{7r0}  & $L_{7}$  & Stay within drivable-surface boundaries & MPC \\
+        \texttt{7r1}  & $L_{7}$  & Obey traffic-light states in intersections & MPC \\
+        \texttt{7r2}  & $L_{7}$  & Avoid opposing lane with oncoming traffic & MPC \\
+        \texttt{7r3}  & $L_{7}$  & Obey one-way street directionality & MPC \\
+        \texttt{7r4}  & $L_{7}$  & Do not stop inside crosswalks & Stub \\
+        \texttt{7r5}  & $L_{7}$  & Do not drive on sidewalks or pedestrian areas & MPC \\
+        \midrule
+        \texttt{3r0}  & $L_{3}$  & Obey posted speed limits & MPC \\
+        \texttt{3r3}  & $L_{3}$  & Maintain safe following headway & MPC \\
+        \texttt{3r5}  & $L_{3}$  & Maintain lateral clearance & MPC \\
+        \texttt{3r6}  & $L_{3}$  & Manage lane intrusions from adjacent vehicles & Stub \\
+        \midrule
+        \texttt{2r2}  & $L_{2}$  & Adhere to the planned global route & Obs.\ \\
+        \midrule
+        \texttt{1r0}  & $L_{1}$  & Yield to higher-priority road users & Obs.\ \\
+        \texttt{1r2}  & $L_{1}$  & Don't block the box (intersection clearance) & Obs.\ \\
+        \texttt{1r5}  & $L_{1}$  & Negotiate uncontrolled intersections safely & Obs.\ \\
+        \texttt{1r11} & $L_{1}$  & Limit lateral acceleration for comfort & MPC \\
+        \midrule
+        \texttt{0r2}  & $L_{0}$  & Limit uncomfortable longitudinal maneuvers & MPC \\
+        \texttt{0r3}  & $L_{0}$  & Limit uncomfortable lateral maneuvers & MPC \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Rule-ID to OCP-Level Map $\pi$}
+\label{sec:rulebook:pi-map}
+
+The 13 MPC-controlled rule IDs in Table~\ref{tab:rulebook} are indexed by their observer-side priority level $\{L_{10}, L_9, L_7, L_3, L_1, L_0\}$ (the leading digit of the rule ID). The per-tick OCP optimises over three rule levels plus an efficiency objective: safety ($L_{\mathrm{S}}$), legal ($L_{\mathrm{L}}$), comfort ($L_{\mathrm{C}}$), and efficiency ($L_{\mathrm{E}} \equiv J$). The four-level operational chain is inherited from~\cite[\S 12.1]{lcp2025}. We declare the rule-ID-to-OCP-level map $\pi : \mathcal{R}_{\mathrm{MPC}} \to \{L_{\mathrm{S}}, L_{\mathrm{L}}, L_{\mathrm{C}}\}$ explicitly:
+
+\begin{itemize}[leftmargin=*,noitemsep]
+    \item $\pi^{-1}(L_{\mathrm{S}}) = \{\texttt{10r0},\ \texttt{9r0},\ \texttt{7r0},\ \texttt{7r5}\}$
+    \item $\pi^{-1}(L_{\mathrm{L}}) = \{\texttt{7r1},\ \texttt{7r2},\ \texttt{7r3},\ \texttt{3r0}\}$
+    \item $\pi^{-1}(L_{\mathrm{C}}) = \{\texttt{3r3},\ \texttt{3r5},\ \texttt{1r11},\ \texttt{0r2},\ \texttt{0r3}\}$
+\end{itemize}
+
+Two structural facts about $\pi$ are operationally consequential. \emph{First}, $\pi$ \emph{splits} the observer-side $L_7$ level across two OCP levels (lane-discipline rules to $L_{\mathrm{S}}$, traffic-state rules to $L_{\mathrm{L}}$) and splits the observer-side $L_3$ level analogously ($\texttt{3r0}$ to $L_{\mathrm{L}}$; $\texttt{3r3}$, $\texttt{3r5}$ to $L_{\mathrm{C}}$); the rulebook's intra-level pre-order is therefore \emph{not} preserved by $\pi$, by design. \emph{Second}, the lex-equivalence guarantee of Theorem~\ref{thm:equivalence} applies to the 3-level OCP grouping $\{L_{\mathrm{S}}, L_{\mathrm{L}}, L_{\mathrm{C}}\}$, not to the observer-side hierarchy of 8 populated priority levels $\{L_0, L_1, L_2, L_3, L_7, L_8, L_9, L_{10}\}$ (within Censi's $L_0$--$L_{10}$ priority space): the comparative metric of Section~\ref{sec:protocol:objects} accordingly operates on the per-OCP-level integrated violation $V_{\mathrm{MPC}, \ell}$ for $\ell \in \{L_{\mathrm{S}}, L_{\mathrm{L}}, L_{\mathrm{C}}\}$, with $L_{\mathrm{E}}$ entering as the performance objective $J$ rather than as a constrained level.
+
+\subsection{The MPC / Observer / Stub Partition}
+\label{sec:rulebook:partition}
+
+\begin{figure*}[t]
+    \centering
+    \input{./Figures/tikz/fig05_d2_rule_level_mapping}
+    \caption{Operational rule taxonomy used by the per-tick OCP. The planner optimises three rule levels and one efficiency objective: safety ($L_{\mathrm{S}}$), legal ($L_{\mathrm{L}}$), comfort ($L_{\mathrm{C}}$), and efficiency ($L_{\mathrm{E}}$). Rule identifiers are retained only as cross-references to Table~\ref{tab:rulebook}; the three inactive reserved slots remain visible because they consume fixed OCP capacity but do not enter the lex-dominance metric.}
+    \label{fig:rule_level_mapping}
+\end{figure*}
+
+Fig.~\ref{fig:rule_level_mapping} collapses the 13 MPC-controlled rules of Table~\ref{tab:rulebook} onto the four operational priority levels that the OCP optimises over. The lifting from 25 observer rules to four OCP objectives is the practical realisation of the lex priority hierarchy from~\cite{lcp2025}~\S12.1: the planner sees the three rule-level violation functionals $V_{\mathrm{S}}, V_{\mathrm{L}}, V_{\mathrm{C}}$ together with the efficiency objective $J$, while the observer evaluates each of the 25 rules independently and emits per-tick rule-evaluation records consumed by the analysis pipeline of Section~\ref{sec:protocol}.
+
+The partition determines the index set over which the per-level integrated violation $V_{\mathrm{MPC}, \ell}$ of Definition~\ref{def:per-level-violation} is summed across the MPC-controlled rules at level $\ell$. The observer-only and stub rules contribute to the per-tick observer evaluations (and therefore to the rule-by-scenario heatmap of Fig.~\ref{fig:rule_scenario_heatmap}) but are not controllable by the planner; the per-scenario top-violating rule analysis of Section~\ref{sec:results}~(\S\ref{sec:results:compromise}) labels observer-only top rules explicitly.
+
+\subsection{What the Convex Framework Cannot Express}
+\label{sec:rulebook:limits}
+
+The 9 observer-only rules and 3 stubs of Table~\ref{tab:rulebook} are excluded from the OCP for structural reasons rather than expediency; each non-MPC rule maps to one of three identifiable limitations of the convex per-step template of~\cite{lcp2025}, enumerated below with counts.
+
+\emph{Multi-tick state machines (5 rules: \texttt{8r0}, \texttt{8r1}, \texttt{1r0}, \texttt{1r2}, \texttt{1r5}).} Mandatory-stop approach, crosswalk-pedestrian yield, yield-priority arbitration, block-the-box detection, and uncontrolled-intersection negotiation require multi-tick reasoning over agent intent, stop-line history, and right-of-way arbitration. Their semantics are not expressible as a per-step inequality $g(z_k) \leq 0$ on the OCP's decision variables and would require either a discrete mode variable (incompatible with the convex template) or an explicit multi-step temporal augmentation, both of which are deferred to the hybrid-MPC extension discussed in Section~\ref{sec:conclusion:future}.
+
+\emph{Cross-step coupling (2 rules: \texttt{10r3}, \texttt{10r4}).} Unmarked-crosswalk yield and cyclist passing distance constrain temporal derivatives spanning more than one tick (a multi-step deceleration profile, a sustained lateral offset). They enter the OCP only through single-step proxies (Section~\ref{sec:deployment:cross-step}); the proxies are conservative in the smooth regime and conservative-in-expectation in the burst regime, but cannot enforce the cross-step constraint exactly.
+
+\emph{Polygonal disjunctions (2 rules: \texttt{2r2}, \texttt{9r1}).} Route adherence on a multi-corridor route and non-traversable-surface avoidance with multiple obstacle polygons describe feasible sets that are complements of polygon unions: not convex, and not affine when linearised. The deployment reduces such rules to the closest-face half-plane via the warm-start-keyed heuristic of Section~\ref{sec:deployment:polygon}; for rules where the closest-face approximation is too lossy (route adherence in branching corridors), the rule is left observer-only.
+
+The three reserved rules (\texttt{10r5} bike-lane encroachment, \texttt{7r4} stop-in-crosswalk, \texttt{3r6} adjacent-vehicle lane intrusion) form a fourth, implementation-orthogonal category: their encoders are not yet implemented, but reserving their slot capacity in the OCP at deployment time keeps the per-tick problem size invariant under future enforcement, sparing the calibration cache and the equivalence-region computation from re-derivation when an encoder is added.
+
+A practical consequence of the partition is that scenarios dominated by observer-only rules --- for example, scenarios in which \texttt{2r2} (route adherence) or \texttt{1r0} (yield priority) is the top-violation rule --- are structurally outside the LCP's controllability. We flag observer-only top-violators explicitly in the per-scenario discussion of Section~\ref{sec:results:compromise} so the reader does not confuse a planner-uncontrollable rule firing with a planner deficiency.
+
+\subsection{Mapping onto Responsibility-Sensitive Safety}
+\label{sec:rulebook:rss-mapping}
+
+Responsibility-Sensitive Safety (RSS)~\cite{shalev2017rss,hasuo2022rss,ieee2846} formulates AV safety as a list of five \emph{responsibility principles} (Hasuo Def.~II.3), each paired with an instantly-checkable safety condition $C$ and a proper response $P$. Our partitioned rulebook is a strict superset of this construct: each RSS principle maps to one or more rules in Table~\ref{tab:rulebook}, and the per-tick compliance vector $b_{\epsilon}(z)$ of Section~\ref{sec:foundations:compliance} is the multi-level generalisation of RSS's single-scenario $C$. Table~\ref{tab:rss_principle_mapping} makes the mapping explicit.
+
+\begin{table}[t]
+    \centering
+    \caption{The five RSS responsibility principles (Hasuo 2022 Def.~II.3) mapped onto our rulebook. Three of the five are operationally enforced via MPC-controlled convex encoders; one is observer-only because its semantics require multi-tick state-machine reasoning; one is implicit in the comfort/headway constraints. The mapping shows that LCP-MPC operationally subsumes the RSS safety-rule construct across multiple priority levels.}
+    \label{tab:rss_principle_mapping}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}r >{\raggedright\arraybackslash}p{2.0cm} X l@{}}
+        \toprule
+        \# & RSS principle & Our rule(s) & Class \\
+        \midrule
+        1 & Don't hit the car in front of you
+          & \texttt{9r0} vehicle collision; \texttt{3r3} safe headway
+          & MPC \\
+        2 & Don't cut in recklessly
+          & \texttt{3r5} lateral clearance; \texttt{1r11} lateral accel.;
+            \texttt{0r3} lateral comfort
+          & MPC \\
+        3 & Right of way is given, not taken
+          & \texttt{1r0} yield priority; \texttt{1r5} uncontrolled-intersection negotiation
+          & Observer \\
+        4 & Be cautious in areas with limited visibility
+          & Implicit in \texttt{3r3} safe headway and \texttt{3r0} speed limit
+          & (implicit) \\
+        5 & If you can avoid a crash without causing another, you must
+          & \texttt{10r0} VRU collision; \texttt{9r0} vehicle collision (top priority)
+          & MPC \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Three observations follow. First, \emph{three of the five} RSS principles (1, 2, 5) are operationally enforced inside the OCP via convex encoders, which means a per-tick optimal solution that satisfies all level-$L_{\mathrm{S}}$ slacks within tolerance also satisfies the RSS conditions for those principles by construction. Second, \emph{one principle} (3, right-of-way) requires multi-tick state-machine reasoning over agent intent and stop-line history that is not expressible in the convex per-step template; it remains observer-only and is the canonical example of why a rulebook formalism (Censi \emph{et al.}~\cite{censi2019liability}) is strictly more expressive than RSS alone. Third, \emph{one principle} (4, limited-visibility caution) is implicit in the comfort-and-headway constraints rather than encoded as a separate rule, mirroring Hasuo's observation that RSS principle~4 is qualitative rather than quantitatively checkable in general (Hasuo~\cite{hasuo2022rss}~\S{}II.B).

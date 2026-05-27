@@ -1,0 +1,139 @@
+% Section II: Foundations recap. Short — reproduces only what is load-bearing
+% for the deployment and the empirical analysis. Full proofs and derivations
+% are in the foundation paper \cite{lcp2025}. Figure captions B1, B2, B4
+% drafted in References/Artifact_discussions.md §II.
+
+This section recaps the load-bearing components of~\cite{lcp2025}: the support-normal equivalence theorem (Theorem~\ref{thm:equivalence}), the polyhedral $L_1$ and asymptotic $L_2$ specialisations (Propositions~\ref{prop:l1-polyhedral}--\ref{prop:l2-asymptotic}), the calibration algorithms (Algorithms~\ref{alg:alg1a}--\ref{alg:alg1b}), and the offline/online operational workflow. Full proofs, worked numerical examples, and the failure-mode catalogue are deferred to~\cite{lcp2025} and cited in place.
+
+\subsection{Problem Statement}
+\label{sec:foundations:problem}
+
+We consider the discrete-time dynamical system $x_{k+1} = f(x_k, u_k)$ over horizon $N$, with state $x_k \in \mathbb{R}^n$ and control $u_k \in \mathbb{R}^m$. The trajectory is $z := (x_{0:N}, u_{0:N-1}) \in \mathbb{R}^d$ where $d := n(N+1) + mN$. The performance objective is
+\begin{equation}
+J(z) := \sum_{k=0}^{N-1} \ell(x_k, u_k) + \ell_f(x_N),
+\label{eq:perf-objective}
+\end{equation}
+with stage cost $\ell$ and terminal cost $\ell_f$. Rule-based constraints are partitioned into $L$ priority levels $\mathcal{C}_i = \{z : g_{i,j}(z) \leq 0, \ j = 1, \ldots, m_i\}$, $i = 1, \ldots, L$, ordered $\mathcal{C}_1 \succ \mathcal{C}_2 \succ \cdots \succ \mathcal{C}_L$. The violation functional at level $i$ is
+\begin{equation}
+V_i(z) := \sum_{j=1}^{m_i} \bigl[g_{i,j}(z)\bigr]_{+}^{p}, \qquad p \in \{1, 2\},
+\label{eq:violation-functional}
+\end{equation}
+with $p = 1$ the $L_1$ (hinge) penalty and $p = 2$ the $L_2$ (squared-hinge) penalty. The standing assumptions of~\cite{lcp2025} --- A1 existence of a lex cascade solution, A2 lex uniqueness up to performance-equivalent tie-breaks, and A3 convexity of $J$ and each $V_i$ --- are assumed throughout. Proposition~\ref{prop:l1-polyhedral} below additionally invokes a cascade Linear Independence Constraint Qualification (LICQ) regularity condition; failure of the cascade LICQ is one of the two structural failure modes catalogued in~\cite[\S8]{lcp2025} and audited empirically in Section~\ref{sec:results}~(\S\ref{sec:results:framework}).
+
+The lexicographic cascade defines, with $\mathcal{F}_0 := \mathcal{Z}$ the dynamics-feasible set,
+\begin{equation}
+V_i^{\star} := \min_{z \in \mathcal{F}_{i-1}} V_i(z), \quad \mathcal{F}_i := \{z \in \mathcal{F}_{i-1} : V_i(z) = V_i^{\star}\},
+\label{eq:cascade}
+\end{equation}
+for $i = 1, \ldots, L$, and minimises $J$ over $\mathcal{F}_L$ at stage $L+1$. We call the resulting trajectory $z_{\mathrm{lex}}^{\star}$ and its image $p^{\star} = (V_1^{\star}, \ldots, V_L^{\star}, J(z_{\mathrm{lex}}^{\star}))$. The weighted-sum scalarisation produces $z_{\mathrm{ws}}^{\star}(w) := \arg\min_z\, [J(z) + \sum_i w_i V_i(z)]$ in a single solve, parameterised by the weight vector $w \in \mathbb{R}_{++}^{L}$.
+
+\subsection{Support-Normal Equivalence}
+\label{sec:foundations:thm1}
+
+Let $\overline{\mathcal{P}}$ denote the upper image of the achievement map $\Phi(z) = (V_1(z), \ldots, V_L(z), J(z))$. Let $\widehat{\Omega}(p^{\star}) \subset \mathbb{R}^{L+1}$ denote the outward normal cone of $\overline{\mathcal{P}}$ at $p^{\star}$, and $\Omega(p^{\star}) \subset \mathbb{R}_{++}^{L}$ its unit-performance slice. The main theorem of~\cite{lcp2025} states:
+
+\begin{theorem}[Support-normal equivalence~{\cite[Thm.~4.1]{lcp2025}}]
+\label{thm:equivalence}
+The lex optimum $z_{\mathrm{lex}}^{\star}$ is contained in $\arg\min_z\, [J(z) + \sum_i w_i V_i(z)]$ if and only if $w \in \Omega(p^{\star})$. Equality with the selected weighted-sum solution holds under weighted-sum uniqueness or under an explicit lex-preserving tie-break.
+\end{theorem}
+
+The proof in~\cite[\S4.2]{lcp2025} proceeds by noting that the lex point $p^\star$ is an extreme point of the upper image $\overline{\mathcal{P}}$ (Lemma~3.2 of~\cite{lcp2025}); the weighted-sum solve at $w$ selects the boundary point of $\overline{\mathcal{P}}$ exposed by the affine functional $(w, 1)$, which coincides with $p^\star$ exactly when $(w, 1)$ supports $\overline{\mathcal{P}}$ at $p^\star$. The condition is both necessary and sufficient: substituting the calibrated weighted-sum solve for the cascade is operationally licensed only when the weight vector lies in $\Omega(p^\star)$, which is precisely the calibration problem Algorithm~\ref{alg:alg1a} solves. The achievement map $\Phi$, the upper image $\overline{\mathcal{P}}$, and the lex image $p^\star$ are reified in our reference implementation as the \texttt{lcp.AchievementImage} dataclass and the \texttt{lcp.lex\_image\_from\_cascade} and \texttt{lcp.verify\_lex\_extreme\_point} helpers; the latter provides a numerical extreme-point check on a finite probe set.
+
+\subsection{Polyhedral $L_1$ Regime}
+\label{sec:foundations:l1}
+
+For $L_1$ violation functionals (\eqref{eq:violation-functional} with $p = 1$), the upper image is polyhedral and the equivalence region admits explicit characterisation:
+
+\begin{proposition}[$L_1$ polyhedral structure~{\cite[Thm.~5.1]{lcp2025}}]
+\label{prop:l1-polyhedral}
+Under the standing assumptions and Setting~(P) of~\cite{lcp2025}, $\overline{\mathcal{P}}$ is a full-dimensional polyhedron; $p^{\star}$ is a vertex; and $\Omega(p^{\star})$ is a non-empty, full-dimensional polyhedral region in $\mathbb{R}_{++}^{L}$.
+\end{proposition}
+
+The full-dimensionality of $\Omega(p^{\star})$ is the geometric content of the empirical observation that ``moderate weights work''. \emph{Remark.} Cascade Linear Independence Constraint Qualification (LICQ) is \emph{not} a hypothesis of Proposition~\ref{prop:l1-polyhedral}; the geometric statements follow from the polyhedrality of $\overline{\mathcal{P}}$ and the extreme-point property of $p^{\star}$ alone (cf.~\cite[Remark~5.1]{lcp2025}). Cascade LICQ is required at the algorithmic step where the explicit half-space description of $\Omega(p^{\star})$ is computed by Fourier--Motzkin elimination of the lex KKT multipliers in Algorithm~\ref{alg:alg1a} (Step~3); LICQ failure makes $\Omega(p^{\star})$ lower-dimensional but not empty (audited empirically in Section~\ref{sec:results:framework}).
+
+\subsection{$L_2$ Asymptotic Regime}
+\label{sec:foundations:l2}
+
+For $L_2$ violation functionals ($p = 2$), the squared-hinge penalty $[g]_+^2$ has $\nabla [g]_+^2 = 2[g]_+ \nabla g = 0$ at every boundary point ($g = 0$). Consequently no finite weight produces a first-order force that resolves the lex priority at the constraint surface, and exact equivalence in the sense of Theorem~\ref{thm:equivalence} is generically unavailable. The operationally relevant notion is asymptotic compliance:
+
+\begin{proposition}[$L_2$ asymptotic rates~{\cite[Thm.~6.1]{lcp2025}}]
+\label{prop:l2-asymptotic}
+Suppose Setting~(Q) and the standing assumptions hold, and that the lex optimum $z_{\mathrm{lex}}^{\star}$ satisfies the four local regularity conditions: (a)~the active set $\mathcal{A}^{\star}$ is stable in a neighbourhood of $z_{\mathrm{lex}}^{\star}$ under small perturbations of weights; (b)~the gradients $\nabla g_{i, j}(z_{\mathrm{lex}}^{\star})$ at boundary-binding constraints are non-zero and linearly independent; (c)~second-order sufficient conditions hold (the reduced Hessian of $J$ on the active manifold is positive definite); and (d)~the weighted-sum minimiser is unique in a neighbourhood of $z_{\mathrm{lex}}^{\star}$ for weights in the regime considered. Suppose additionally the performance-outward sign condition $\langle \nabla J(z_{\mathrm{lex}}^{\star}), \nabla g_{i, j}(z_{\mathrm{lex}}^{\star}) \rangle < 0$ at the boundary-binding constraint $g_{i, j}$. Then the raw constraint violation and the violation functional decay at the rates
+\begin{equation}
+    g_{i, j}(z_{\mathrm{ws}}^{\star}(w)) = O(1/w_i), \qquad V_i(z_{\mathrm{ws}}^{\star}(w)) = O(1/w_i^2)
+    \label{eq:l2-asymp}
+\end{equation}
+as $w_i \to \infty$.
+\end{proposition}
+
+Equation~\eqref{eq:l2-asymp} is consistent with the $O(1/\sqrt{\epsilon_i})$ threshold scaling of compliance equivalence (Section~\ref{sec:foundations:compliance}): inverting $V_i(z_{\mathrm{ws}}^{\star}(w)) = O(1/w_i^2) \leq \epsilon_i$ gives $w_i = O(1/\sqrt{\epsilon_i})$ for the boundary-binding regime in Algorithm~\ref{alg:alg1b}.
+
+\subsection{Compliance Equivalence}
+\label{sec:foundations:compliance}
+
+Where exact equivalence is unavailable, the operationally relevant notion is preservation of the binary satisfaction pattern. Let $b_{\epsilon}(z) \in \{0, 1\}^{L}$ denote the per-level compliance vector at tolerance vector $\boldsymbol{\epsilon} = (\epsilon_1, \ldots, \epsilon_L)$, with $b_{\epsilon, i}(z) = \mathbb{1}[V_i(z) \leq \epsilon_i]$. The compliance-equivalence region is $\Omega_b^{\epsilon}(p^{\star}) := \{w \in \mathbb{R}_{++}^{L} : b_{\epsilon}(z_{\mathrm{ws}}^{\star}(w)) = b_{\epsilon}(z_{\mathrm{lex}}^{\star})\}$. The exact ($L_1$) and tolerance-based ($L_2$) versions of compliance equivalence and the threshold scaling $W_i(\epsilon_i, w_{-i}) = O(1/\sqrt{\epsilon_i})$ for squared-violation tolerance are stated in~\cite[\S7]{lcp2025}; we use compliance as the runtime safety net of Section~\ref{sec:deployment:compliance}. The compliance vector $b_{\epsilon}(z)$ is the multi-level generalisation of Hasuo's instantly-checkable RSS safety condition $C$~\cite[Def.~II.1, Req.~II.2]{hasuo2022rss}: where RSS specifies a single boolean condition per scenario together with a hand-designed proper response that maintains it, our framework specifies one boolean per priority level whose conjunction is the runtime certificate of lex-equivalence (Theorem~\ref{thm:equivalence}), with the cascade fallback (Section~\ref{sec:deployment:dual-mode}) playing the role of Hasuo's proper response uniformly across all levels.
+
+\subsection{Algorithm 1A: $L_1$ Exact-Equivalence Calibration}
+\label{sec:foundations:alg1a}
+
+\begin{figure}[t]
+    \centering
+    \input{./Figures/tikz/fig02_b1_alg1a_flow}
+    \caption{Algorithm~\ref{alg:alg1a} as an offline calibration workflow for the $L_1$ regime. The lex reference solve provides the active-set signature, the KKT and projection steps recover the exact-equivalence region in weight space, and the Chebyshev-centre program selects a robust deployment weight $w^{\dagger}$ inside the admissible box. Cf.~\cite[Fig.~B1]{lcp2025}.}
+    \label{fig:alg1a_flow}
+\end{figure}
+
+\begin{algorithm}[t]
+\caption{$L_1$ exact-equivalence calibration~\cite[\S9.3]{lcp2025}}
+\label{alg:alg1a}
+\begin{algorithmic}[1]
+\Require Convex priority-ordered program with $L_1$ violation functionals; weight box $\mathcal{W} = [\underline{w}_i, \overline{w}_i]^L$.
+\State Solve the lex cascade~\eqref{eq:cascade} to obtain $z_{\mathrm{lex}}^{\star}$ and the active-constraint signature $p^{\star}$.
+\State Form the lex Karush--Kuhn--Tucker (KKT) system at $z_{\mathrm{lex}}^{\star}$ and lift to the $(w, \beta)$-space.
+\State Eliminate the per-level lex multipliers via Fourier--Motzkin to obtain the half-space description of $\Omega(p^{\star})$.
+\State Solve the box-bounded Chebyshev-centre linear program on $\Omega(p^{\star}) \cap \mathcal{W}$ to obtain $w^{\dagger}$ and inscribed-ball radius $r^{\dagger}$.
+\Ensure Calibrated weight vector $w^{\dagger}$; cache the reference compliance vector $b_{\epsilon}^{\star} := b_{\epsilon}(z_{\mathrm{lex}}^{\star})$.
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:alg1a} operates in the polyhedral $L_1$ regime (Proposition~\ref{prop:l1-polyhedral}) and returns a weight vector $w^{\dagger}$ at which the weighted-sum solve provably recovers the lex optimum. Worked Example~1 of~\cite[\S11.1]{lcp2025} reproduces analytically $w^{\dagger} = (5.5, 5.5)$ and $r^{\dagger} = 4.5$ on a two-priority instance; the algorithm is unit-tested in our codebase against this reference.
+
+The framework also provides Algorithm~0 (the homogeneous-cone primary formulation of~\cite[\S9.1]{lcp2025}), an operator-supplied-box-free alternative to Algorithm~1A that solves a Chebyshev linear program on the simplex slice of the homogeneous cone $\widehat\Omega(p^\star)$ and projects back to unit-performance weights via $\bar w_i := w_i^\sharp / \beta^\sharp$. On Example~1 it returns $\bar w \approx (2, 2)$, also inside $\Omega(p^\star)$. The detailed pseudocode and complexity bounds for Algorithms~0, 1A, and 1B are in Appendix~\ref{app:algorithms}.
+
+\subsection{Algorithm 1B: $L_2$ Tolerance-Compliance Calibration}
+\label{sec:foundations:alg1b}
+
+\begin{figure}[t]
+    \centering
+    \input{./Figures/tikz/fig03_b2_alg1b_flow}
+    \caption{Algorithm~\ref{alg:alg1b} as an offline calibration workflow for the $L_2$ regime. Exact finite-weight equivalence is replaced by compliance preservation: the lex reference is analysed to obtain sensitivity coefficients, the threshold step synthesises admissible lower bounds $W_i(\epsilon_i, w_{-i})$, and the coupled calibration program selects $w^{\dagger}$. A failed compliance check sends the procedure back to tolerance refinement rather than silently deploying an invalid weight. Cf.~\cite[Fig.~B2]{lcp2025}.}
+    \label{fig:alg1b_flow}
+\end{figure}
+
+\begin{algorithm}[t]
+\caption{$L_2$ tolerance-compliance calibration~\cite[\S9.4]{lcp2025}}
+\label{alg:alg1b}
+\begin{algorithmic}[1]
+\Require Convex priority-ordered program with $L_2$ violation functionals; per-level tolerance $\boldsymbol{\epsilon}$; weight box $\mathcal{W}$.
+\State Solve the lex cascade~\eqref{eq:cascade} to obtain $z_{\mathrm{lex}}^{\star}$ and $p^{\star}$.
+\State Extract the singular-perturbation sensitivity constants $\{c_i, \kappa_i\}_{i=1}^{L}$ at $p^{\star}$.
+\State Form the pointwise threshold $W_i(\epsilon_i, w_{-i}) = (c_i + \kappa_i^{T} w_{-i}) / \sqrt{\epsilon_i}$.
+\State Solve the coupled-linear Chebyshev-centre linear program in $(w, \beta)$-space on $\{w \in \mathcal{W} : w_i \geq W_i(\epsilon_i, w_{-i}),\ i = 1, \ldots, L\}$ to obtain $w^{\dagger}$.
+\State Verify the resulting compliance vector $b_{\epsilon}(z_{\mathrm{ws}}^{\star}(w^{\dagger}))$ matches $b_{\epsilon}^{\star}$; on mismatch, refine $\boldsymbol{\epsilon}$ or escalate.
+\Ensure Calibrated weight vector $w^{\dagger}$; cached reference compliance vector $b_{\epsilon}^{\star}$.
+\end{algorithmic}
+\end{algorithm}
+
+Worked Example~2 of~\cite[\S11.2]{lcp2025} reproduces analytically the threshold $W_1(\epsilon_1 = 0.01, w_3 = 1) \approx 77.5$ on a three-priority discrete-time instance; our codebase unit-tests Algorithm~\ref{alg:alg1b} against this reference.
+
+\subsection{Operational Workflow}
+\label{sec:foundations:state-machine}
+
+\begin{figure}[t]
+    \centering
+    \input{./Figures/tikz/fig04_b4_state_machine}
+    \caption{Offline-online operational workflow of the LCP deployment. The offline phase calibrates and caches $(w^{\dagger}, b_{\epsilon}^{\star})$ per scenario class. The runtime loop performs one weighted-sum solve per tick, checks whether the resulting solution preserves the cached compliance pattern, and branches explicitly to either accepted execution or mismatch handling. Cf.~\cite[Fig.~B4]{lcp2025}.}
+    \label{fig:state_machine}
+\end{figure}
+
+Fig.~\ref{fig:state_machine} places the framework into its operational context. The architectural contribution of~\cite{lcp2025} is the decomposition of the $L+1$-stage cascade into an offline calibration step, executed once per scenario class, and a single online weighted-sum solve per MPC tick. The decomposition is conditional on the runtime compliance check: at every tick, the binary compliance vector $b_{\epsilon}(z_{\mathrm{ws}}^{\star})$ at the operational solution is compared against the cached reference $b_{\epsilon}^{\star}$ from the offline lex cascade. A match certifies that the active-set structure has not drifted and the weighted-sum solution is admissible; a mismatch indicates structural drift and triggers either an online recalibration or a cascade fallback for the offending tick. The deployment described in Section~\ref{sec:deployment} realises both phases of this workflow, and the empirical match-rate evidence is reported in Section~\ref{sec:results}~(\S\ref{sec:results:theorem41}).

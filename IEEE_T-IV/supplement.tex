@@ -1,0 +1,133 @@
+\PassOptionsToPackage{table}{xcolor}
+\documentclass[journal, twocolumn]{IEEEtran}
+
+\usepackage{amsmath,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{verbatim}
+
+% Resolve body-paper cross-references with the same `\ref{}` keys.
+\usepackage{xr-hyper}
+\externaldocument[main-]{Main}
+
+\let\origincludegraphics\includegraphics
+\renewcommand{\includegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \origincludegraphics[#1]{#2}%
+  }{%
+    \fbox{\parbox{0.8\linewidth}{\centering\small\texttt{[Missing figure: #2]}}}%
+  }%
+}
+
+\begin{document}
+
+\title{Online Supplementary Material for ``Closed-Loop Deployment of Lexicographic Constraint Programming for Trajectory Model Predictive Control on the nuPlan Simulator''}
+
+\author{Hadi~Hajieghrary%
+\thanks{H.~Hajieghrary is with Torc Robotics, Blacksburg, VA, USA. E-mail: \texttt{Hadi.Hajieghrary@Torc.ai}.}
+}
+
+\maketitle
+
+\begin{abstract}
+This supplement collects the reproducibility artefacts of the manuscript: (a)~the structured 7-dimension validation report covering correctness, completeness, performance, effectiveness, utility, perturbation stability, and Procedure~10.1 convergence; (b)~the captured stdout of the end-to-end demos on the two worked examples of~\cite[\S11]{lcp2025}; (c)~a roster of per-scenario closed-loop artefacts (MP4, summary PNG, per-tick CSV) for each of the 16 \texttt{nuPlan-mini} scenarios under both protocol conditions; (d)~the raw CSVs underlying every figure in the main manuscript's Section~VII.
+\end{abstract}
+
+% =============================================================================
+\section{Validation Report (\texttt{validate\_v10\_2.py})}
+\label{sec:supp:validation}
+
+The \texttt{lcp/} reference implementation ships with a one-command validation battery covering seven evaluation dimensions. The script lives at \texttt{workspace/examples/validate\_v10\_2.py} and writes a structured plain-text report to \texttt{workspace/examples/outputs/manuscript/\allowbreak validation\_report.txt}.
+
+The seven dimensions are:
+
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Correctness} --- on Example~1 (\cite{lcp2025} \S11.1), Algorithm~1A reproduces $w^\dagger = (5.5, 5.5)$, $r^\dagger = 4.5$, and the WS solve at $w^\dagger$ recovers $z_{\mathrm{lex}} = (3, 5)$, $J = -11$; on Example~2 (\cite{lcp2025} \S11.2), Algorithm~1B reproduces the sensitivity constants and threshold function exactly.
+
+\item \textbf{Completeness} --- 51 / 51 public symbols of \texttt{lcp} import and are callable.
+
+\item \textbf{Performance} --- Algorithm~1A LP wall-time at priority depths $L = 2, 3, 5, 8, 12$ scales modestly from $\sim 0.8$ to $\sim 1.0$~ms per solve; Algorithm~0 and Algorithm~1A on Example~1 finish in $\sim 0.8$~ms each.
+
+\item \textbf{Effectiveness} --- 200 random weight vectors drawn uniformly from $\Omega(p^\star) \cap [1, 10]^2$ for Example~1: \textbf{200/200} recover the lex optimum $z = (3, 5)$. Direct empirical confirmation of Theorem~4.1 of~\cite{lcp2025}.
+
+\item \textbf{Utility} --- head-to-head of five weight strategies (Algorithm~1A, Algorithm~0, flat-weight $(1, 1)$, badly-chosen $(0.1, 0.1)$, lopsided $(10, 0.5)$): only the two calibrated strategies recover the lex optimum; flat-weight at the boundary of $\Omega$ and the two outside-$\Omega$ choices land at non-lex vertices. Concrete demonstration of the practical value of calibration.
+
+\item \textbf{Perturbation stability} --- 200 random multiplicative perturbations of $w^\dagger$ (factor $\in [0.05, 3.0]$ per coordinate independently): every in-$\Omega$ perturbation preserves the binary compliance vector $b = (1, 1)$; every outside-$\Omega$ perturbation drops at least one compliance bit. Empirical Theorem~7.1 in the $L_1$ regime.
+
+\item \textbf{Procedure~10.1 convergence} --- on a constructed three-level synthetic problem with one necessity-forced level (\S10.2), one utility-relaxed level (Theorem~10.2b), and one level that should stay hard: \texttt{lcp.iterative\_lex\_relaxation} converges in two iterations to the expected $(\delta_1, \delta_2, \delta_3) = (0, 0.5, 0.4)$.
+\end{enumerate}
+
+The complete report, including per-perturbation values and iteration traces, is reproduced as a verbatim listing at the end of this supplement.
+
+% =============================================================================
+\section{Captured Demos of Examples~1 and~2}
+
+\subsection*{Example~1 (\cite{lcp2025} \S11.1, $L_1$ two-priority LP)}
+
+The end-to-end demo script \texttt{workspace/examples/lcp\_demo\_v10\_2.py} exercises the full pipeline on the paper's analytic Example~1: pre-flight diagnostics, Algorithm~0, Algorithm~1A, the half-space description of $\Omega(p^\star)$, the cascade-vs-WS equivalence check, the compliance vector, the stressed-conflict variant, and the \S10.2 necessity probe. The captured stdout is at \texttt{workspace/examples/outputs/manuscript/example\_1\_demo.txt}.
+
+Key numerical outcomes:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item Diagnostics: \texttt{LICQ rank=2/2, convexity holds, $L_1$ regime} \checkmark
+\item Algorithm~1A: $w^\dagger = (5.5, 5.5)$, $r^\dagger = 4.5$ \checkmark
+\item Cascade and WS both return $z_{\mathrm{lex}} = (3, 5)$, $J = -11$ \checkmark
+\item Compliance patterns match $\Rightarrow$ Theorem~4.1 \checkmark
+\end{itemize}
+
+\subsection*{Example~2 (\cite{lcp2025} \S11.2, $L_2$ three-priority QP)}
+
+The companion demo \texttt{workspace/examples/lcp\_demo\_example2.py} exercises Algorithm~1B on the paper's analytic Example~2: pre-flight diagnostics, sensitivity-constant extraction, threshold function evaluation, the full pointwise LP, and the asymptotic-scaling sweep. The captured stdout is at \texttt{workspace/examples/outputs/manuscript/example\_2\_demo.txt}.
+
+Key numerical outcomes:
+\begin{itemize}[leftmargin=*,noitemsep]
+\item Sensitivity constants: $c_1 = 7$, $\kappa_1 = (0, 0, 0.75)$ \checkmark
+\item Threshold function: $W_1(\epsilon_1 = 0.01, w_3 = 1) = 77.5$ and $W_1(\epsilon_1 = 0.01, w_3 = 10) = 145$ \checkmark
+\item Paper's exhibited witness $(200, 100, 10)$ achieves threshold slack $0.1 \cdot 200 - 0.75 \cdot 10 - 7 = 5.5$ \checkmark
+\item Asymptotic scaling: $w_1^\dagger$ increases proportionally to $1/\sqrt{\epsilon_1}$ \checkmark
+\end{itemize}
+
+% =============================================================================
+\section{Per-Scenario Closed-Loop Artefacts}
+
+For each of the 16 \texttt{nuPlan-mini} scenarios listed in Table~\ref{main-tab:per_scenario_status} of the main manuscript, the protocol emits the following artefacts under \texttt{workspace/examples/outputs/manuscript/}:
+
+\begin{itemize}[leftmargin=*,noitemsep]
+\item \texttt{C1\_instrumented/seed\_7/<scenario>\_\_l1/<scenario>.mp4} --- closed-loop animation with planner trajectory overlay (operational WS-$L_1$ planner).
+\item \texttt{C1\_instrumented/seed\_7/<scenario>\_\_l1/<scenario>\_summary.png} --- static episode summary plot (per-rule violation timeline, cumulative integrated violation, per-level stacked rates).
+\item \texttt{C1\_instrumented/seed\_7/<scenario>\_\_l1/<scenario>\_log.csv} --- per-tick per-rule CSV with the applicability flag, violation flag, and violation rate.
+\item \texttt{C4\_cascade/seed\_7/<scenario>\_\_l1\_cascade/} --- the same three artefacts under the cascade reference planner.
+\end{itemize}
+
+The MP4 / summary PNG / CSV artefacts together support the per-scenario inspection that motivates each scenario's entry in the per-rule heatmap of Fig.~\ref{main-fig:rule_scenario_heatmap}, the per-level breakdown of Fig.~\ref{main-fig:level_breakdown}, and the compliance-match analysis of Fig.~\ref{main-fig:compliance_match}.
+
+% =============================================================================
+\section{Per-Scenario Diagnostics and Necessity Scans}
+
+The two framework-side scans of Section~\ref{main-sec:results:framework} are dumped as one row per scenario in two CSVs:
+
+\begin{itemize}[leftmargin=*,noitemsep]
+\item \texttt{diagnostics\_scan.csv} --- per scenario: peak-tick active-constraint count, LICQ rank, LICQ deficit, \texttt{framework\_applies} flag.
+\item \texttt{necessity\_scan.csv} --- per scenario: $i^\star_{\mathrm{nec}}$, forced-relaxation levels, per-level violation-fraction breakdown.
+\end{itemize}
+
+These two CSVs are the source data for the tables \texttt{tab:diagnostics} and \texttt{tab:necessity} in the main manuscript.
+
+% =============================================================================
+\section{Reproducing the Validation Report}
+
+To regenerate the validation report from a fresh checkout:
+
+\begin{verbatim}
+cd workspace
+python examples/validate_v10_2.py \
+    --out examples/outputs/manuscript/validation_report.txt
+\end{verbatim}
+
+The script depends only on the \texttt{lcp/} package, \texttt{numpy}, and \texttt{scipy.optimize.linprog}; total runtime is under five seconds.
+
+\end{document}

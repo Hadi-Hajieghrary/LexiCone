@@ -1,0 +1,50 @@
+% Appendix C: Encoder Specification. Per-encoder roster derived from
+% workspace/lexicone/planning/rule_encoder.py. 12 encoders cover the 13
+% MPC-controlled rule IDs; per-level slot totals match the OCP slot budget
+% [16, 7, 11] reported in Appendix A.
+
+We document the twelve encoder modules of the deployment. Each encoder translates one observer rule (or, in the case of the combined collision encoder, two) into an affine convex inequality slot in the OCP~\eqref{eq:lcp-epigraph}. The per-step slot budget per encoder, the convex form, and the operational masking semantics are listed in Table~\ref{tab:encoder_spec}. The 13 MPC-controlled rule IDs of Table~\ref{tab:rulebook} are covered by 12 encoders (the collision encoder \texttt{CollisionRule} is shared between rules \texttt{9r0} and \texttt{10r0}).
+
+\begin{table}[h]
+    \centering
+    \caption{Encoder roster for the LCP-MPC deployment. Each row specifies the encoder class, the observer rule it encodes, the OCP priority level, the per-step slot budget, and the convex inequality form. The combined collision encoder (\texttt{CollisionRule}) covers both \texttt{9r0} (non-VRU vehicles) and \texttt{10r0} (VRUs); the three stub encoders (\texttt{10r5}, \texttt{7r4}, \texttt{3r6}) reserve OCP slot capacity for future enforcement but emit inactive constraints today.}
+    \label{tab:encoder_spec}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l l c c X@{}}
+        \toprule
+        Encoder & Rule(s) & Lvl. & Slots & Convex form \\
+        \midrule
+        \texttt{CollisionRule}            & \texttt{9r0}, \texttt{10r0} & $L_{\mathrm{S}}$ & 8 & Per-agent inflated-circle keep-out: $(x_k - o_{j,x})^{2} + (y_k - o_{j,y})^{2} \geq (r_{j} + r_{\mathrm{ego}})^{2}$, linearised. \\
+        \texttt{LaneCorridorRule}         & \texttt{7r0}                & $L_{\mathrm{S}}$ & 2 & Two linear half-planes $\pm n^{T}(p_{k} - p_{\mathrm{ref}}) \leq w_{\mathrm{corridor}}/2$ around the route centreline. \\
+        \texttt{SidewalkDriveRule}        & \texttt{7r5}                & $L_{\mathrm{S}}$ & 4 & Closest-face half-plane of the nearest walkway polygon to the warm-start. \\
+        \midrule
+        \texttt{SpeedLimitRule}           & \texttt{3r0}                & $L_{\mathrm{L}}$ & 1 & $v_{k} - v_{\lim}(s_{k}) \leq 0$, with $s_{k}$ the arc-length projection. \\
+        \texttt{OpposingLaneRule}         & \texttt{7r2}                & $L_{\mathrm{L}}$ & 2 & Half-plane vs the nearest opposing-direction lane. \\
+        \texttt{OneWayDirectionRule}      & \texttt{7r3}                & $L_{\mathrm{L}}$ & 2 & Half-plane variant of \texttt{OpposingLaneRule} with wider tolerance. \\
+        \texttt{TrafficLightRule}         & \texttt{7r1}                & $L_{\mathrm{L}}$ & 1 & $x_{\mathrm{ego}, k} - (x_{\mathrm{stop}} - \mathrm{buf}) \leq 0$ when the controlling traffic light is RED/YELLOW. \\
+        \midrule
+        \texttt{SafeHeadwayRule}          & \texttt{3r3}                & $L_{\mathrm{C}}$ & 1 & $t_{\mathrm{hw}} v_{k} + d_{\min} - \mathrm{gap}_{k} \leq 0$. \\
+        \texttt{LongitudinalComfortRule}  & \texttt{0r2}                & $L_{\mathrm{C}}$ & 2 & $|a_{x, k}| \leq a_{x, \max}^{\mathrm{comf}}$ via two-sided slot. \\
+        \texttt{LateralAccelerationRule}  & \texttt{1r11}               & $L_{\mathrm{C}}$ & 2 & $|a_{y, k}| \leq a_{y, \max}^{\mathrm{comf}}$ via two-sided slot. \\
+        \texttt{LateralClearanceRule}     & \texttt{3r5}                & $L_{\mathrm{C}}$ & 2 & $Y$-band keep-out vs adjacent agents (per-slot). \\
+        \texttt{LateralComfortRule}       & \texttt{0r3}                & $L_{\mathrm{C}}$ & 2 & Soft cap on $|\delta|$ as a cross-step jerk proxy. \\
+        \midrule
+        \texttt{StubRule[\texttt{10r5}]} & \texttt{10r5} & $L_{\mathrm{S}}$ & 2 & Reserved; emits inactive constraints. \\
+        \texttt{StubRule[\texttt{7r4}]}  & \texttt{7r4}  & $L_{\mathrm{L}}$ & 1 & Reserved; emits inactive constraints. \\
+        \texttt{StubRule[\texttt{3r6}]}  & \texttt{3r6}  & $L_{\mathrm{C}}$ & 2 & Reserved; emits inactive constraints. \\
+        \midrule
+        \multicolumn{3}{l}{\emph{Per-level totals}} & $16/7/11$ & matches Appendix~\ref{app:hyperparameters} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection*{Per-step coefficient triple}
+
+Each slot of each encoder emits a per-(slot, step) coefficient triple $(a, b, e) \in \mathbb{R}^{n} \times \mathbb{R}^{m} \times \mathbb{R}$ for use in the convex inequality~\eqref{eq:lcp-epigraph}: $a^{T} \tilde{x}_{k} + b^{T} \tilde{u}_{k} + e\, \mu \leq T_{\ell, j, k}$. The triple is computed from the encoder's per-tick \emph{warm-start linearisation}: for a non-linear underlying constraint $g(x_k, u_k) \leq 0$ evaluated at the SLP warm-start $(\bar x_k, \bar u_k)$, the encoder emits
+\begin{equation}
+    a = \nabla_x g(\bar x_k, \bar u_k),\quad b = \nabla_u g(\bar x_k, \bar u_k),\quad e = g(\bar x_k, \bar u_k) - a^T \bar x_k - b^T \bar u_k.
+    \label{eq:encoder-triple}
+\end{equation}
+The inequality $a^T \tilde x_k + b^T \tilde u_k + e \leq T_{\ell,j,k}$ is then the first-order Taylor expansion of $g$ at the warm-start, satisfied tightly when the SLP fixed point coincides with the warm-start. For the \texttt{CollisionRule} (inflated-circle keep-out vs.\ agent $j$ at position $o_j$ with radius $r_j$), the underlying $g$ is $g(x_k) = (r_j + r_{\mathrm{ego}})^2 - (x_k - o_{j,x})^2 - (y_k - o_{j,y})^2$ and the linearised coefficients are $a_x = -2(\bar x_k - o_{j,x})$, $a_y = -2(\bar y_k - o_{j,y})$, with the remaining components zero. For the affine encoders (\texttt{SpeedLimitRule}, \texttt{LongitudinalComfortRule}, \texttt{LateralAccelerationRule}, etc.) the linearisation is exact and $(a, b, e)$ reduce to constants per step.
+
+The applicability mask $\mu_{\ell, j, k} \in \{0, 1\}$ is the encoder's per-step decision on whether the slot is operational on that tick; when $\mu = 0$, the encoder sets $e \leftarrow -M$ with $M = 10^{6}$, rendering the constraint trivially satisfied at $T_{\ell, j, k} = 0$ regardless of the dynamics solution. The encoder implementations are at \texttt{workspace/lexicone/planning/rule\_encoder.py}; the partition test \texttt{test\_rule\_level\_mapping.py} asserts that the encoder set matches the \texttt{MPC\_CONTROLLED\_IDS} declaration at module import time, providing machine-checked invariance of the count under refactoring.

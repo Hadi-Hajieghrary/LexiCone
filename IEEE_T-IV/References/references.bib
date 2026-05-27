@@ -1,8 +1,231 @@
+% Bibliography for the IEEE T-IV LCP-MPC deployment paper.
+% Entries grouped by line of literature (equivalent-weight theory, prioritised
+% control, rulebook formalism, multi-objective optimisation, sampling-based AV
+% planning, numerical methods + benchmarks, statistical methodology).
+
+% ============================================================================
+% Foundation paper (this manuscript's geometric framework)
+% ============================================================================
+@unpublished{lcp2025,
+  author       = {Hadi Hajieghrary},
+  title        = {Lexicographic Constraint Programming: {A} Geometric Equivalence Framework for Convex Priority-Ordered {MPC}},
+  note         = {Companion foundation manuscript, submitted concurrently with the present deployment paper; provided as supplementary material. Establishes Theorem~4.1, Propositions~5.1/6.1, the failure-mode catalogue of \S{}8, and Algorithms~1A/1B with the worked examples reproduced as Appendix~B verification anchors in the present paper.},
+  year         = {2026}
+}
+
+@inproceedings{dauner2023pdm,
+  author    = {Daniel Dauner and Marcel Hallgarten and Andreas Geiger and Kashyap Chitta},
+  title     = {Parting with misconceptions about learning-based vehicle motion planning},
+  booktitle = {Conference on Robot Learning (CoRL)},
+  year      = {2023},
+  note      = {Introduces PDM-Closed, the canonical strong rule-based baseline on nuPlan (CoRL 2023 challenge winner; CLS-R~$\approx$~92 on Val14).}
+}
+
+% ============================================================================
+% Rulebook formalism for autonomous driving
+% ============================================================================
 @inproceedings{censi2019liability,
   title     = {Liability, ethics, and culture-aware behavior specification using rulebooks},
   author    = {Censi, Andrea and Slutsky, Konstantin and Wongpiromsarn, Tichakorn and Yershov, Dmitry and Pendleton, Scott and Fu, James and Frazzoli, Emilio},
   booktitle = {International Conference on Robotics and Automation},
   pages     = {8536--8542},
   year      = {2019}
+}
+
+@inproceedings{esterle2020specification,
+  author    = {Klemens Esterle and Patrick Hart and Julian Bernhard and Alois Knoll},
+  title     = {Spatiotemporal motion planning for autonomous vehicles with trapezoidal prism corridors and {B}{\'e}zier curves},
+  booktitle = {American Control Conference},
+  year      = {2020}
+}
+
+@article{shalev2017rss,
+  author  = {Shai Shalev-Shwartz and Shaked Shammah and Amnon Shashua},
+  title   = {On a formal model of safe and scalable self-driving cars},
+  journal = {arXiv preprint arXiv:1708.06374},
+  year    = {2017}
+}
+
+@article{hasuo2022rss,
+  author  = {Ichiro Hasuo},
+  title   = {Responsibility-sensitive safety: an introduction with an eye to logical foundations and formalization},
+  journal = {arXiv preprint arXiv:2206.03418},
+  year    = {2022}
+}
+
+@misc{ieee2846,
+  author       = {{IEEE Vehicular Technology Society}},
+  title        = {{IEEE 2846}: Assumptions for Models in Safety-Related Automated Vehicle Behavior},
+  year         = {2022},
+  howpublished = {IEEE Standard 2846-2022}
+}
+
+% ============================================================================
+% Equivalent-weight theory
+% ============================================================================
+@article{sherali1982equivalent,
+  author  = {Hanif D. Sherali},
+  title   = {Equivalent weights for lexicographic multi-objective programs: characterizations and computations},
+  journal = {European Journal of Operational Research},
+  volume  = {11},
+  number  = {4},
+  pages   = {367--379},
+  year    = {1982}
+}
+
+@book{charnes1961goal,
+  author    = {A. Charnes and W. W. Cooper},
+  title     = {Management Models and Industrial Applications of Linear Programming},
+  publisher = {Wiley},
+  year      = {1961}
+}
+
+@article{eisenbrand2003lex,
+  author  = {Friedrich Eisenbrand and Stefan Niermann and Martin Skutella},
+  title   = {Lexicographic optimization in linear and combinatorial programs: explicit weight bounds},
+  journal = {Mathematical Programming},
+  year    = {2003}
+}
+
+% ============================================================================
+% Prioritised constrained control
+% ============================================================================
+@article{kanoun2011prioritized,
+  author  = {Oussama Kanoun and Florent Lamiraux and Pierre-Brice Wieber},
+  title   = {Kinematic control of redundant manipulators: generalizing the task-priority framework to inequality task},
+  journal = {IEEE Transactions on Robotics},
+  volume  = {27},
+  number  = {4},
+  pages   = {785--792},
+  year    = {2011}
+}
+
+@article{escande2014hqp,
+  author  = {Adrien Escande and Nicolas Mansard and Pierre-Brice Wieber},
+  title   = {Hierarchical quadratic programming: fast online humanoid-robot motion generation},
+  journal = {International Journal of Robotics Research},
+  volume  = {33},
+  number  = {7},
+  pages   = {1006--1028},
+  year    = {2014}
+}
+
+% ============================================================================
+% Multi-objective optimisation and Pareto theory
+% ============================================================================
+@book{wierzbicki1980,
+  author    = {Andrzej P. Wierzbicki},
+  title     = {The use of reference objectives in multiobjective optimization},
+  publisher = {Springer},
+  year      = {1980}
+}
+
+@book{yu1985compromise,
+  author    = {Po-Lung Yu},
+  title     = {Multiple-Criteria Decision Making: Concepts, Techniques, and Extensions},
+  publisher = {Plenum Press},
+  year      = {1985}
+}
+
+@book{zeleny1982compromise,
+  author    = {Milan Zeleny},
+  title     = {Multiple Criteria Decision Making},
+  publisher = {McGraw-Hill},
+  year      = {1982}
+}
+
+@book{miettinen1999nonlinear,
+  author    = {Kaisa Miettinen},
+  title     = {Nonlinear Multiobjective Optimization},
+  publisher = {Kluwer},
+  year      = {1999}
+}
+
+@inproceedings{branke2004knee,
+  author    = {J{\"u}rgen Branke and Kalyanmoy Deb and Henning Dierolf and Matthias Osswald},
+  title     = {Finding knees in multi-objective optimization},
+  booktitle = {Parallel Problem Solving from Nature},
+  pages     = {722--731},
+  year      = {2004}
+}
+
+@article{das1999knee,
+  author  = {Indraneel Das},
+  title   = {On characterizing the ``knee'' of the {P}areto curve based on normal-boundary intersection},
+  journal = {Structural Optimization},
+  volume  = {18},
+  number  = {2-3},
+  pages   = {107--115},
+  year    = {1999}
+}
+
+% ============================================================================
+% Sampling-based autonomous-vehicle planning
+% ============================================================================
+@article{schwesinger2018sampling,
+  author  = {Ulrich Schwesinger and Martin Rufli and Roland Siegwart},
+  title   = {A sampling-based partial motion planning framework for system-compliant navigation along a reference path},
+  journal = {Robotics and Autonomous Systems},
+  year    = {2018}
+}
+
+% ============================================================================
+% Numerical methods + benchmarks
+% ============================================================================
+@book{nocedal2006numerical,
+  author    = {Jorge Nocedal and Stephen J. Wright},
+  title     = {Numerical Optimization},
+  edition   = {2nd},
+  publisher = {Springer},
+  year      = {2006}
+}
+
+@book{bertsekas1999nonlinear,
+  author    = {Dimitri P. Bertsekas},
+  title     = {Nonlinear Programming},
+  edition   = {2nd},
+  publisher = {Athena Scientific},
+  year      = {1999}
+}
+
+@book{rockafellar1970convex,
+  author    = {R. Tyrrell Rockafellar},
+  title     = {Convex Analysis},
+  publisher = {Princeton University Press},
+  year      = {1970}
+}
+
+@book{boyd2004convex,
+  author    = {Stephen Boyd and Lieven Vandenberghe},
+  title     = {Convex Optimization},
+  publisher = {Cambridge University Press},
+  year      = {2004}
+}
+
+@article{wachter2006ipopt,
+  author  = {Andreas W{\"a}chter and Lorenz T. Biegler},
+  title   = {On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming},
+  journal = {Mathematical Programming},
+  volume  = {106},
+  number  = {1},
+  pages   = {25--57},
+  year    = {2006}
+}
+
+@article{andersson2019casadi,
+  author  = {Joel A. E. Andersson and Joris Gillis and Greg Horn and James B. Rawlings and Moritz Diehl},
+  title   = {{CasADi}: a software framework for nonlinear optimization and optimal control},
+  journal = {Mathematical Programming Computation},
+  volume  = {11},
+  number  = {1},
+  pages   = {1--36},
+  year    = {2019}
+}
+
+@inproceedings{caesar2021nuplan,
+  author    = {Holger Caesar and Juraj Kabzan and Kok Seang Tan and Whye Kit Fong and Eric Wolff and Alex Lang and Luke Fletcher and Oscar Beijbom and Sammy Omari},
+  title     = {{nuPlan}: a closed-loop {ML}-based planning benchmark for autonomous vehicles},
+  booktitle = {Conference on Neural Information Processing Systems Datasets and Benchmarks Track},
+  year      = {2021}
 }
 

@@ -1,0 +1,83 @@
+% Appendix D: Framework Verification Battery. Manuscript-grade companion to
+% workspace/examples/validate_v10_2.py and PHASE_C_DEMO.md.
+
+This appendix consolidates the framework-side evidence that the \texttt{lcp/} reference implementation is a faithful realisation of the v10\_2 specification. The evidence is layered: (D.1)~the worked examples of~\cite[\S11]{lcp2025} reproduced at $10^{-6}$ precision; (D.2)~the seven-dimension structured validation report (Fig.~\ref{fig:validation_summary} of the main manuscript); (D.3)~the cross-reference between v10\_2 sections and \texttt{lcp/} modules.
+
+\subsection*{D.1\ Worked-example reproduction}
+
+The \texttt{lcp/tests/} pytest suite contains 55 tests; the 11 that exercise the paper's worked examples are summarised in Table~\ref{tab:framework_examples}.
+
+\begin{table}[h]
+    \centering
+    \caption{Worked-example regression tests for the \texttt{lcp/} reference implementation. Each test reproduces a published numerical answer from~\cite{lcp2025} \S11. All 55 \texttt{lcp/tests/} tests pass in $<1$~s.}
+    \label{tab:framework_examples}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l l X@{}}
+        \toprule
+        Test & Source ref. & Reproduced quantity \\
+        \midrule
+        \multicolumn{3}{l}{\emph{Example 1 ($L_1$ two-priority LP, \cite{lcp2025} \S11.1)}} \\
+        Alg.~1A on Ex.~1 box $[1,10]^2$ & \S11.1 & $w^\dagger = (5.5,\,5.5)$, $r^\dagger = 4.5$ \\
+        Alg.~1A $\beta$ multipliers     & \S11.1 & $\beta_{\rm at\_opt} = (1.0,\,1.0)$ \\
+        $\Omega(p^\star)$ half-spaces   & Eq.~(15) & $\{-w_1 \le -1\} \cap \{-w_2 \le -1\}$ \\
+        Alg.~0 projected $\bar w$       & \S9.1   & $\bar w \in \Omega(p^\star)$ \\
+        Lex image $p^\star$             & Eq.~(2) & $(V_1, V_2, J) = (0, 0, -11)$ \\
+        \midrule
+        \multicolumn{3}{l}{\emph{Example 2 ($L_2$ three-priority QP, \cite{lcp2025} \S11.2)}} \\
+        Sensitivity constants    & \S11.2 & $c_1 = 7$, $\kappa_1[3] = 0.75$ \\
+        Threshold at $w_3 = 1$   & Eq.~(21) & $W_1(\epsilon_1{=}0.01) \approx 77.5$ \\
+        Threshold at $w_3 = 10$  & Eq.~(21) & $W_1(\epsilon_1{=}0.01) = 145$ \\
+        Paper-witness slack at $(200, 100, 10)$ & \S11.2 & $0.1{\cdot}200 - 0.75{\cdot}10 - 7 = 5.5$ \\
+        Tight $\epsilon_1$ scaling & Thm.~6.1 & $w^\dagger_1 \propto 1/\sqrt{\epsilon_1}$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Both examples are also exercised end-to-end (diagnostics $\to$ calibration $\to$ cascade-vs-WS $\to$ compliance $\to$ \S10.2 necessity) by the demo scripts \texttt{workspace/examples/lcp\_demo\_v10\_2.py} (Example~1) and \texttt{workspace/examples/lcp\_demo\_example2.py} (Example~2); their captured stdout is in the supplement (\S{}I).
+
+\subsection*{D.2\ Seven-dimension validation battery}
+
+The script \texttt{workspace/examples/validate\_v10\_2.py} (Section~\ref{sec:results:summary}) exercises the seven evaluation dimensions of Fig.~\ref{fig:validation_summary}:
+
+\begin{enumerate}[leftmargin=*,noitemsep]
+\item \textbf{Correctness} (Algorithm-level reproduction of the worked examples).
+\item \textbf{Completeness} (every public \texttt{lcp.*} symbol imports and is callable; $51 / 51$).
+\item \textbf{Performance} (Algorithm~1A LP wall-time at $L = 2, 3, 5, 8, 12$; $0.7$--$1.0$ ms per solve).
+\item \textbf{Effectiveness} (Theorem~4.1: $200/200$ random weights in $\Omega(p^\star) \cap [1,10]^2$ recover the lex optimum $z = (3, 5)$).
+\item \textbf{Utility} (Algorithm-1A vs Algorithm-0 vs flat-weight vs badly-chosen vs lopsided: only the two calibrated strategies recover lex).
+\item \textbf{Perturbation stability} (Theorem~7.1 in the $L_1$ regime: 200 random multiplicative perturbations of $w^\dagger$; every in-$\Omega$ perturbation preserves the binary compliance vector $b = (1, 1)$; every out-of-$\Omega$ perturbation drops at least one compliance bit).
+\item \textbf{Procedure~10.1 convergence} (constructed three-level problem combining one necessity-forced level, one utility-relaxed level, and one hard level: converges in two iterations to $(\delta_1, \delta_2, \delta_3) = (0, 0.5, 0.4)$).
+\end{enumerate}
+
+\subsection*{D.3\ Section-to-module map}
+
+\begin{table}[h]
+    \centering
+    \caption{Cross-reference between v10\_2 sections and the \texttt{lcp/} reference implementation. The \texttt{lcp/} package is dynamics-agnostic; the Section~12 (application to rulebook MPC) and Section~14 (deployment lessons) content lives one layer up in \texttt{workspace/lexicone/planning/} where the bicycle-specific deployment glue is.}
+    \label{tab:framework_section_map}
+    \footnotesize
+    \begin{tabularx}{\linewidth}{@{}l X@{}}
+        \toprule
+        v10\_2 \S\ & Module / function in \texttt{lcp/} \\
+        \midrule
+        \S2 Preliminaries          & \texttt{lcp.ConvexPriorityProblem}, \texttt{LevelSpec}, \texttt{AffineDynamics}, \texttt{BoxBounds} \\
+        \S3 Upper image            & \texttt{lcp.AchievementImage}, \texttt{lex\_image\_from\_cascade}, \texttt{verify\_lex\_extreme\_point} \\
+        \S4 Thm.~4.1 (equivalence) & \texttt{lcp.algorithm\_1a} encodes KKT for $\Omega(p^\star)$ \\
+        \S5 $L_1$ polyhedral       & \texttt{lcp.omega\_half\_space\_description} \\
+        \S6 $L_2$ asymptotic       & \texttt{lcp.compute\_l2\_sensitivity\_constants}, \texttt{l2\_threshold} \\
+        \S7 Compliance             & \texttt{lcp.ComplianceChecker} \\
+        \S8 Failure modes          & \texttt{lcp.check\_licq}, \texttt{check\_convexity}, \texttt{run\_diagnostics} \\
+        \S9.1 Algorithm 0          & \texttt{lcp.algorithm\_0\_homogeneous} \\
+        \S9.3 Algorithm 1A         & \texttt{lcp.algorithm\_1a} \\
+        \S9.4 Algorithm 1B         & \texttt{lcp.algorithm\_1b} \\
+        \S9.5 Cache                & \texttt{lcp.CalibrationCache} \\
+        \S9.6 Online deployment    & \texttt{lcp.deploy\_tick}, \texttt{OnlineDeploymentConfig} \\
+        \S10 Relaxation framework  & \texttt{lcp.compute\_necessary\_relaxation\_level}, \texttt{find\_knee\_depth}, \texttt{iterative\_lex\_relaxation} \\
+        \S11 Worked examples       & \texttt{workspace/lcp/tests/test\_equivalence\_alg\{0,1a,1b\}.py} \\
+        \S12 Application           & \texttt{workspace/lexicone/planning/} (Section~\ref{sec:deployment}) \\
+        \S14 Deployment lessons    & \texttt{workspace/lexicone/planning/} + Table~\ref{tab:lessons_learned} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Table~\ref{tab:framework_section_map} resolves every v10\_2 section (theory and application) to its concrete implementation. The dynamics-agnostic theory of Sections~2--11 lives in \texttt{lcp/}; the bicycle-specific deployment content of Sections~12 and~14 lives in \texttt{lexicone/planning/}.

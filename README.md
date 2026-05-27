@@ -2,7 +2,26 @@
 
 **Lexicographic Constraint Programming for Trajectory Model Predictive Control of Autonomous Vehicles**
 
-A complete deployment of the *Lexicographic Constraint Programming* (LCP) framework for trajectory Model Predictive Control (MPC) on the official nuPlan closed-loop simulator. The project ships (i) a theoretical paper proving when a single weighted-sum (WS) Nonlinear Program (NLP) solve substitutes exactly for an $L+1$-stage lexicographic cascade, (ii) a full reference implementation in three operational modes (legacy single-tier baseline, LCP-WS, and LCP-cascade), (iii) a comparative-effectiveness protocol over $400$ simulation runs on $16$ nuPlan-mini scenarios, and (iv) a $277$-figure IEEE-Transactions-grade artefact suite plus an extensively documented codebase.
+A complete reference implementation and closed-loop deployment of the *Lexicographic Constraint Programming* (LCP) framework specified in `References/lex_constraint_programming_report_v10_2.md`. The project ships:
+
+1. **Dynamics-agnostic reference implementation** at [`workspace/lcp/`](workspace/lcp/) — 55 unit tests reproducing the framework's worked Examples 1 and 2 to $10^{-6}$ precision; covers Algorithms 0, 1A, 1B, §8.5 pre-flight diagnostics, §9.6 online deployment, §10 relaxation framework, and §3 upper-image reification.
+2. **One-command framework verification** via [`workspace/examples/validate_v10_2.py`](workspace/examples/validate_v10_2.py) — a 7-dimension structured battery (correctness, completeness, performance, effectiveness, utility, Theorem 7.1 perturbation stability, Procedure 10.1 convergence). All seven dimensions PASS.
+3. **Closed-loop deployment** at [`workspace/lexicone/planning/`](workspace/lexicone/planning/) — kinematic-bicycle MPC with eleven implementation primitives (SLP outer loop, polygon-to-half-plane, applicability masking, ego-local-frame, calibration cache, runtime compliance checker, etc.) wiring the abstract framework into the official nuPlan simulator.
+4. **Dual-condition demonstration protocol** under the 16-scenario nuPlan-mini benchmark — $C_1$ (operational WS-$L_1$) and $C_4$ (formal lex cascade) on each scenario; full per-tick CSVs, per-scenario MP4s, summary plots, and the framework-side §8.5 diagnostics + §10.2 necessity scans.
+5. **IEEE T-IV manuscript** at [`IEEE_T-IV/`](IEEE_T-IV/) — `Main.tex` plus 9 section subfiles and 4 appendices; figures auto-generated from the dual-condition CSVs via [`workspace/examples/make_manuscript_artefacts.py`](workspace/examples/make_manuscript_artefacts.py); build with `make paper`.
+
+> **Quick orientation for v10_2 readers**
+>
+> | Want to … | Open this |
+> |---|---|
+> | Verify the framework against the spec | `cd workspace && bash verify_v10_2.sh` |
+> | See the 7-dimension validation report | `python workspace/examples/validate_v10_2.py` |
+> | Read Example 1 / Example 2 end-to-end demos | `workspace/examples/lcp_demo_v10_2.py`, `lcp_demo_example2.py` |
+> | Reproduce the nuPlan dual-condition protocol | `cd IEEE_T-IV && make protocol` (~5 h) |
+> | Regenerate figures + tables after a protocol run | `cd IEEE_T-IV && make regen` |
+> | Build the IEEE T-IV PDF | `cd IEEE_T-IV && make paper` |
+> | Read the spec being implemented | `References/lex_constraint_programming_report_v10_2.md` |
+> | Section-to-module cross-reference | Appendix D of `IEEE_T-IV/Main.pdf` (Framework Verification) |
 
 ![LCP planner traversing an intersection](workspace/examples/outputs/12_batch_two_level_mpc_planner/16_traversing_intersection__l1/16_traversing_intersection.gif)
 
@@ -561,17 +580,20 @@ Both documents follow IEEE Transactions style: first-person plural, numbered dis
 
 ## Status
 
-**Active development.** Snapshot of the work-in-progress state as of this README's last update:
+**Active development.** Snapshot:
 
-- ✅ Theoretical framework — paper $15$ sections complete.
-- ✅ Reference implementation — three operational modes (legacy / LCP-WS / LCP-cascade), 16 LCP-controlled rule encoders, full SLP outer iteration, runtime compliance checker, JSON-backed calibration cache.
-- ✅ Single-seed LCP-WS-$L_1$ batch — 16 scenarios, source for the artefact suite.
-- ✅ Artefact suite — 277 figures (96 per-scenario + 10 aggregate + 12 theory + 159 violations).
-- ✅ 16 per-scenario READMEs with embedded GIFs + narrative descriptions.
-- ✅ Comprehensive report — 11 IEEE-style sections, $\approx 12{,}000$ words.
-- ✅ Comparative-effectiveness protocol — driver implemented, smoke test validated, full batch ~88 % done (cascade cells in progress at the time of writing).
-- ⏳ Final analysis + F1–F3 figures — pending batch completion.
-- ⏳ Paper §VIII numerical headline — placeholder framing in place; numbers fill in when the cascade cells finish.
+- ✅ **Theoretical framework spec** — `References/lex_constraint_programming_report_v10_2.md`, 15 sections.
+- ✅ **`lcp/` reference implementation** — 55-test pytest suite passes, including Algorithms 0/1A/1B exact-numerical regression against the paper's worked Examples 1 and 2.
+- ✅ **`lcp.upper_image`** — Section 3 reified (`AchievementImage`, `lex_image_from_cascade`, `verify_lex_extreme_point`); 8 of the 55 tests.
+- ✅ **`lcp.diagnostics`** — §8.5 pre-flight (FM I LICQ + FM II convexity).
+- ✅ **`lcp.online`** — §9.6 deploy_tick with cascade-fallback + recalibration policies.
+- ✅ **`lcp.relaxation`** — §10 necessity + significance + Procedure 10.1.
+- ✅ **`validate_v10_2.py`** — 7-dimension framework verification battery, all PASS.
+- ✅ **Closed-loop deployment** — kinematic-bicycle MPC + 11 implementation primitives (`lexicone/planning/`).
+- ✅ **C1 (WS-L1) instrumented batch** — 16 scenarios complete (~52 min wall-clock).
+- ⏳ **C4 (cascade) reference batch** — running in background, $\sim 4$ hr remaining.
+- ✅ **IEEE T-IV manuscript draft** — `IEEE_T-IV/Main.tex` + 9 sections + 4 appendices, Scope-B-aligned (v10_2 implementation + qualitative deployment evidence).
+- ⏳ **Final figures (fig22 walltime bars)** — auto-fills via `regen_manuscript.sh` when C4 finishes.
 
 ### Future work
 
